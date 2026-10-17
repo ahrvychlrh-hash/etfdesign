@@ -1,0 +1,84 @@
+import type { EtfStats } from './types'
+
+export interface Quote {
+  symbol: string
+  name: string
+  price: number
+  stats: EtfStats
+}
+
+export interface SearchItem {
+  symbol: string
+  name: string
+  exchange: string
+}
+
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(path)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+export async function fetchQuote(symbol: string): Promise<Quote> {
+  const q = await get<{
+    symbol: string
+    name: string
+    currency: string
+    nativePrice: number
+    price: number
+    fx: number
+    priceCagr: number | null
+    totalCagr: number | null
+    years: number
+    div12m: number
+    payMonths: number[]
+  }>(`/api/quote?symbol=${encodeURIComponent(symbol)}`)
+  return {
+    symbol: q.symbol,
+    name: q.name,
+    price: q.price,
+    stats: {
+      currency: q.currency,
+      nativePrice: q.nativePrice,
+      fx: q.fx,
+      priceCagr: q.priceCagr,
+      totalCagr: q.totalCagr,
+      years: q.years,
+      divPerShare: q.div12m * q.fx,
+      payMonths: q.payMonths,
+      updatedAt: new Date().toISOString(),
+    },
+  }
+}
+
+export function searchRemote(q: string) {
+  return get<SearchItem[]>(`/api/search?q=${encodeURIComponent(q)}`)
+}
+
+/** 국내 상장 ETF 전체 목록 [코드, 이름, 분류] — 하루 동안 브라우저에 캐시 */
+export type KrEtfRow = [string, string, number]
+const KR_KEY = 'etf-planner/kr-etfs-v2'
+let krPromise: Promise<KrEtfRow[]> | null = null
+
+export function loadKrEtfs(): Promise<KrEtfRow[]> {
+  if (krPromise) return krPromise
+  try {
+    const raw = localStorage.getItem(KR_KEY)
+    if (raw) {
+      const { at, rows } = JSON.parse(raw) as { at: number; rows: KrEtfRow[] }
+      if (Date.now() - at < 86_400_000 && rows.length) return (krPromise = Promise.resolve(rows))
+    }
+  } catch {
+    // 캐시를 못 읽으면 새로 받음
+  }
+  krPromise = get<KrEtfRow[]>('/api/etfs').then((rows) => {
+    try {
+      localStorage.setItem(KR_KEY, JSON.stringify({ at: Date.now(), rows }))
+    } catch {
+      // noop
+    }
+    return rows
+  })
+  krPromise.catch(() => (krPromise = null))
+  return krPromise
+}
