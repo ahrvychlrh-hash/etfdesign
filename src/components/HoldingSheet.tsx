@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { Account, EtfStats, Holding } from '../lib/types'
 import { fetchQuote, loadKrEtfs, searchRemote, type KrEtfRow, type SearchItem } from '../lib/api'
-import { displayTicker, isCrypto, isForeign, searchPresets, unitOf } from '../lib/presets'
+import { displayTicker, isForeign, searchPresets, unitOf } from '../lib/presets'
 import { ASSET_CLASSES, expectedBreakdown } from '../lib/expected'
 import { ICONS } from '../lib/characters'
 import { groupDigits, parseNumber, won, wonShort } from '../lib/format'
@@ -88,7 +88,7 @@ function EtfSearch({ onPick, onClose }: { onPick: (p: Picked) => void; onClose: 
   return (
     <>
       <div className="sheet__head">
-        <h2>어떤 ETF·코인을 가지고 있나요?</h2>
+        <h2>어떤 ETF를 가지고 있나요?</h2>
         <button className="icon-btn" onClick={onClose} aria-label="닫기">
           ✕
         </button>
@@ -97,13 +97,13 @@ function EtfSearch({ onPick, onClose }: { onPick: (p: Picked) => void; onClose: 
         <img src={ICONS.search} alt="" width={20} height={20} />
         <input
           autoFocus
-          placeholder="이름·종목코드·코인 (예: TIME 코스닥, 360750, SCHD, 비트코인)"
+          placeholder="이름·종목코드 (예: TIME 코스닥, 360750, SCHD)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
       <p className="results__count">
-        {kr ? `국내 상장 ETF ${kr.length.toLocaleString('ko-KR')}개 + 해외 ETF·코인 검색` : krError ? '국내 ETF 목록을 불러오지 못했어요' : '국내 ETF 목록 불러오는 중…'}
+        {kr ? `국내 상장 ETF ${kr.length.toLocaleString('ko-KR')}개 + 해외 ETF 검색` : krError ? '국내 ETF 목록을 불러오지 못했어요' : '국내 ETF 목록 불러오는 중…'}
       </p>
       <ul className="results">
         {directKr && <ResultRow symbol={`${code}.KS`} name={`종목코드 ${code}`} sub="국내" onPick={onPick} />}
@@ -113,7 +113,7 @@ function EtfSearch({ onPick, onClose }: { onPick: (p: Picked) => void; onClose: 
         {extra.map((r) => (
           <ResultRow key={r.symbol} symbol={r.symbol} name={r.name} sub={r.exchange} onPick={onPick} />
         ))}
-        {loading && <li className="results__msg">해외 ETF·코인 검색 중…</li>}
+        {loading && <li className="results__msg">해외 ETF 검색 중…</li>}
         {!loading && q && local.length === 0 && extra.length === 0 && !directKr && (
           <li className="results__msg">결과가 없어요. 다른 이름이나 종목코드로 검색해 보세요.</li>
         )}
@@ -129,7 +129,7 @@ function ResultRow({ symbol, name, sub, onPick }: { symbol: string; name: string
         <span className="list__main">
           {isForeign(symbol) ? (
             <>
-              <b>{displayTicker(symbol)}</b>
+              <b>{symbol}</b>
               <span className="muted">
                 {name} · {sub}
               </span>
@@ -198,10 +198,9 @@ function HoldingForm({
     }
   }, [picked.symbol, initial])
 
-  // 금 현물은 그램, 코인은 소수점 수량
+  // 금 현물은 그램 단위
   const unit = unitOf(picked.symbol)
   const gram = unit === 'g'
-  const coin = isCrypto(picked.symbol)
   const avg = qty > 0 ? invested / qty : 0
   const evaluation = qty * price
   const valid = qty > 0 && invested > 0 && price > 0
@@ -267,7 +266,7 @@ function HoldingForm({
           <span className="muted">
             {isForeign(picked.symbol) ? name : displayTicker(picked.symbol)} · {ASSET_CLASSES[exp.assetClass].label}
           </span>
-          <b className="etf-head__name">{isForeign(picked.symbol) ? displayTicker(picked.symbol) : name}</b>
+          <b className="etf-head__name">{isForeign(picked.symbol) ? picked.symbol : name}</b>
         </span>
         <span className="etf-head__price">
           <span className="muted">{gram ? '1g 시세' : '현재가'}</span>
@@ -282,12 +281,7 @@ function HoldingForm({
 
       {status === 'error' && <p className="alert">시세를 불러오지 못했어요. 평가금을 직접 입력해 주세요.</p>}
 
-      {status !== 'loading' &&
-        (coin ? (
-          <p className="hint hint--top">코인은 부동산처럼 총자산에만 더하고, 기대 수익률·성장 예측·리밸런싱에서는 빼요.</p>
-        ) : (
-          <ExpectedCard exp={exp} reinvest={reinvest} />
-        ))}
+      {status !== 'loading' && <ExpectedCard exp={exp} reinvest={reinvest} />}
 
       <div className="form-item form-item--full">
         <span className="form-item__label">계좌</span>
@@ -310,21 +304,14 @@ function HoldingForm({
       </div>
 
       <div className="form-grid">
-        <NumberField
-          label={gram ? '보유량' : coin ? '보유 수량' : '보유 주식수'}
-          suffix={unit}
-          value={qty}
-          onChange={changeQty}
-          autoFocus={!initial}
-          decimal={coin}
-        />
+        <NumberField label={gram ? '보유량' : '보유 주식수'} suffix={unit} value={qty} onChange={changeQty} autoFocus={!initial} />
         <NumberField label="투자금 (총 매입금액)" suffix="원" value={invested} onChange={changeInvested} />
         <NumberField
           label={gram ? '1g당 평균 매입가' : '평균매입가'}
           suffix="원"
           value={Math.round(avg)}
           onChange={changeAvg}
-          hint={qty > 0 && invested > 0 ? gram || coin ? '투자금 ÷ 보유량으로 자동 계산' : '투자금 ÷ 주식수로 자동 계산' : '투자금을 넣으면 자동 계산돼요'}
+          hint={qty > 0 && invested > 0 ? gram ? '투자금 ÷ 보유량으로 자동 계산' : '투자금 ÷ 주식수로 자동 계산' : '투자금을 넣으면 자동 계산돼요'}
         />
         <NumberField
           label="평가금"
@@ -417,34 +404,17 @@ function NumberField(props: {
   onChange: (n: number) => void
   hint?: ReactNode
   autoFocus?: boolean
-  /** 소수점 입력 허용 (코인 수량) */
-  decimal?: boolean
 }) {
-  // 입력 중인 "0.0" 같은 값을 그대로 보여주기 위해 문자열로 보관
-  const [draft, setDraft] = useState<string | null>(null)
-  const shown = props.decimal
-    ? (draft ?? (props.value ? props.value.toLocaleString('ko-KR', { maximumFractionDigits: 8 }) : ''))
-    : groupDigits(props.value)
-
-  function change(text: string) {
-    if (!props.decimal) return props.onChange(parseNumber(text))
-    const clean = text.replace(/[^\d.]/g, '')
-    if (!/^\d*\.?\d{0,8}$/.test(clean)) return
-    setDraft(clean)
-    props.onChange(Number(clean) || 0)
-  }
-
   return (
     <label className="form-item">
       <span className="form-item__label">{props.label}</span>
       <div className="field">
         <input
-          inputMode={props.decimal ? 'decimal' : 'numeric'}
+          inputMode="numeric"
           placeholder="0"
           autoFocus={props.autoFocus}
-          value={shown}
-          onChange={(e) => change(e.target.value)}
-          onBlur={() => setDraft(null)}
+          value={groupDigits(props.value)}
+          onChange={(e) => props.onChange(parseNumber(e.target.value))}
         />
         <span className="field__suffix">{props.suffix}</span>
       </div>

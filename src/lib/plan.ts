@@ -1,25 +1,26 @@
-import { isReserve, type Account, type Holding, type Profile, type RealEstate } from './types'
+import { isReserve, type Account, type CryptoAsset, type Holding, type Profile, type RealEstate } from './types'
 import { annualDividend, holdingValue, monthsToTarget, portfolioReturn, portfolioSummary } from './finance'
-import { isCrypto } from './presets'
 
 /** 보유 ETF가 없을 때 예측에 쓰는 기본 연 수익률(%) */
 export const DEFAULT_RATE = 7
 
 /**
- * 비상금 계좌의 ETF·현금과 코인을 투자 자산에서 분리합니다.
- * 둘 다 총자산에는 넣지만 수익률·기록·리밸런싱에서는 뺍니다.
+ * 비상금 계좌의 ETF와 현금을 투자 자산에서 분리합니다.
+ * 비상금은 총자산에는 넣지만 수익률·기록·리밸런싱에서는 뺍니다.
  */
 export function splitReserve(holdings: Holding[], accounts: Account[]) {
   const reserveAccounts = accounts.filter(isReserve)
   const reserveIds = new Set(reserveAccounts.map((a) => a.id))
+  const investHoldings = holdings.filter((h) => !reserveIds.has(h.accountId))
   const reserveHoldings = holdings.filter((h) => reserveIds.has(h.accountId))
-  // 비상금 계좌에 있는 코인은 비상금으로 셈
-  const cryptoHoldings = holdings.filter((h) => !reserveIds.has(h.accountId) && isCrypto(h.symbol))
-  const investHoldings = holdings.filter((h) => !reserveIds.has(h.accountId) && !isCrypto(h.symbol))
   const reserveCash = reserveAccounts.reduce((s, a) => s + (a.cash ?? 0), 0)
   const reserveTotal = reserveHoldings.reduce((s, h) => s + holdingValue(h), 0) + reserveCash
-  const cryptoTotal = cryptoHoldings.reduce((s, h) => s + holdingValue(h), 0)
-  return { investHoldings, reserveHoldings, reserveCash, reserveTotal, cryptoTotal }
+  return { investHoldings, reserveHoldings, reserveCash, reserveTotal }
+}
+
+/** 코인 현물 평가금 합계 */
+export function cryptoTotal(cryptos: CryptoAsset[]) {
+  return cryptos.reduce((s, c) => s + c.quantity * c.price, 0)
 }
 
 /** 화면 여러 곳에서 쓰는 목표·수익률 계산을 한곳에 모읍니다. holdings는 투자 자산(비상금 제외)만 넘깁니다. */

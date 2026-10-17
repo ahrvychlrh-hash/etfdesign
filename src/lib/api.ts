@@ -51,8 +51,8 @@ export async function fetchQuote(symbol: string): Promise<Quote> {
   }
 }
 
-export function searchRemote(q: string) {
-  return get<SearchItem[]>(`/api/search?q=${encodeURIComponent(q)}`)
+export function searchRemote(q: string, type: 'etf' | 'crypto' = 'etf') {
+  return get<SearchItem[]>(`/api/search?q=${encodeURIComponent(q)}&type=${type}`)
 }
 
 /** 국내 상장 ETF 전체 목록 [코드, 이름, 분류] — 하루 동안 브라우저에 캐시 */

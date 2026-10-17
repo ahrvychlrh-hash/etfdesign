@@ -1,10 +1,32 @@
-import type { Account, AppState, EtfStats, Holding, Profile } from './types'
+import { ACCOUNT_KINDS, type Account, type AppState, type CryptoAsset, type EtfStats, type Holding, type Profile } from './types'
+import { isCrypto } from './presets'
 
 const KEY = 'etf-planner/v1'
 
 export const DEFAULT_ACCOUNT: Account = { id: 'default', name: '기본 계좌', kind: '일반' }
 
-const empty: AppState = { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [], targets: {}, snapshots: {}, reinvests: [], realEstates: [] }
+const empty: AppState = {
+  profile: null,
+  accounts: [DEFAULT_ACCOUNT],
+  holdings: [],
+  targets: {},
+  snapshots: {},
+  reinvests: [],
+  realEstates: [],
+  cryptos: [],
+}
+
+/** 잠깐 보유 ETF 목록에 코인을 넣던 버전의 데이터를 코인 칸으로 옮김 */
+function holdingToCrypto(h: Holding): CryptoAsset {
+  return {
+    id: h.id,
+    symbol: h.symbol,
+    name: h.name,
+    quantity: h.quantity,
+    price: h.currentPrice,
+    updatedAt: h.stats?.updatedAt,
+  }
+}
 
 type OldHolding = Holding & { ticker?: string; avgPrice?: number; stats?: EtfStats & { divYield?: number } }
 
@@ -37,16 +59,21 @@ export function loadState(): AppState {
     const raw = localStorage.getItem(KEY)
     if (!raw) return empty
     const parsed = JSON.parse(raw) as Partial<AppState>
-    const accounts = parsed.accounts?.length ? parsed.accounts : [DEFAULT_ACCOUNT]
+    // 없어진 계좌 종류('코인' 등)는 일반으로
+    const accounts = (parsed.accounts?.length ? parsed.accounts : [DEFAULT_ACCOUNT]).map((a) =>
+      (ACCOUNT_KINDS as readonly string[]).includes(a.kind) ? a : { ...a, kind: '일반' as const },
+    )
     const ids = new Set(accounts.map((a) => a.id))
+    const holdings = ((parsed.holdings ?? []) as OldHolding[]).map((h) => migrateHolding(h, ids))
     return {
       profile: migrateProfile(parsed.profile),
       accounts,
-      holdings: ((parsed.holdings ?? []) as OldHolding[]).map((h) => migrateHolding(h, ids)),
+      holdings: holdings.filter((h) => !isCrypto(h.symbol)),
       targets: parsed.targets ?? {},
       snapshots: parsed.snapshots ?? {},
       reinvests: parsed.reinvests ?? [],
       realEstates: parsed.realEstates ?? [],
+      cryptos: [...(parsed.cryptos ?? []), ...holdings.filter((h) => isCrypto(h.symbol)).map(holdingToCrypto)],
     }
   } catch {
     return empty
@@ -70,5 +97,5 @@ export function clearState() {
 }
 
 export function emptyState(): AppState {
-  return { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [], targets: {}, snapshots: {}, reinvests: [], realEstates: [] }
+  return { ...empty, accounts: [DEFAULT_ACCOUNT] }
 }

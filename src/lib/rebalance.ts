@@ -1,6 +1,5 @@
 import type { Holding } from './types'
 import { holdingValue } from './finance'
-import { isCrypto } from './presets'
 
 /** 같은 ETF는 계좌가 달라도 하나로 합쳐서 비중을 봅니다. */
 export interface Position {
@@ -71,9 +70,7 @@ export function rebalance(list: Position[], targets: Record<string, number>, ext
     const gap = target - current
     // 금액은 천원 단위까지만
     const amount = Math.round(amounts[i] / 1000) * 1000
-    // 코인은 소수 단위로 살 수 있어서 소수점 4자리까지
-    const step = isCrypto(p.symbol) ? 1e4 : 1
-    const shares = p.price > 0 ? Math.round((amount / p.price) * step) / step : 0
+    const shares = p.price > 0 ? Math.round(amount / p.price) : 0
     const within = Math.abs(gap) <= TOLERANCE && !(extra > 0 && Math.abs(amount) >= p.price)
     const action: RebalanceRow['action'] = amount === 0 ? 'hold' : amount > 0 ? 'buy' : 'sell'
     return { ...p, current, target, gap, amount, shares, action, within }

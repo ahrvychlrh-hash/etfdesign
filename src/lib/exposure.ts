@@ -15,9 +15,10 @@ const US = /미국|(^|\s)us\b|u\.s\.|s&p|나스닥|nasdaq|다우|dow|필라델�
 
 /* ---------- 자산군 ---------- */
 
-export const ASSET_BUCKETS = ['주식', '채권', '금·원자재', '현금성', '리츠', '인버스'] as const
+export const ASSET_BUCKETS = ['주식', '채권', '금·원자재', '현금성', '리츠', '인버스', '가상자산'] as const
 
 function assetBucket(cls: AssetClassId): (typeof ASSET_BUCKETS)[number] {
+  if (cls === 'crypto') return '가상자산'
   if (cls === 'bond' || cls === 'bondLong') return '채권'
   if (cls === 'gold' || cls === 'commodity') return '금·원자재'
   if (cls === 'cash') return '현금성'
@@ -44,6 +45,7 @@ function countryMix(h: Holding, cls: AssetClassId): Mix {
   if (/대만|taiwan/i.test(n)) return { 대만: 100 }
   if (/유럽|euro|stoxx/i.test(n)) return { 유럽: 100 }
   if (cls === 'gold' || cls === 'commodity') return { '국가 무관(원자재)': 100 }
+  if (cls === 'crypto') return { '국가 무관(가상자산)': 100 }
   if (cls === 'world' || cls === 'equity') return /global|글로벌|전세계|world|acwi|\bvt\b/i.test(n) ? WORLD : us ? { 미국: 100 } : WORLD
   if (cls === 'intl') return /ex[- ]?china|emxc|중국제외/i.test(n) ? EM_EX_CHINA : EM
   if (['usLarge', 'usTech', 'usDividend'].includes(cls)) return { 미국: 100 }

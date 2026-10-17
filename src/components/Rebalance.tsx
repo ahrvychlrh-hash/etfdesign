@@ -5,7 +5,7 @@ import { positions, rebalance, TOLERANCE, type RebalanceRow } from '../lib/rebal
 import { judgeCountries, judgeSectors, portfolioExposure, type Level } from '../lib/exposure'
 import { colorMap } from '../lib/plan'
 import { won, wonShort } from '../lib/format'
-import { formatQty, primaryLabel, secondaryLabel, unitOf } from '../lib/presets'
+import { primaryLabel, secondaryLabel, unitOf } from '../lib/presets'
 import { MoneyInput } from './MoneyInput'
 import { Section, Toggle } from './ui'
 
@@ -308,7 +308,7 @@ function Action({ r }: { r: RebalanceRow }) {
       </b>
       <small>
         {buy ? '매수' : '매도'}{' '}
-        {shares > 0 ? `약 ${formatQty(r.symbol, shares)}${unitOf(r.symbol)}` : `1${unitOf(r.symbol)} 미만`}
+        {shares > 0 ? `약 ${shares.toLocaleString('ko-KR')}${unitOf(r.symbol)}` : `1${unitOf(r.symbol)} 미만`}
       </small>
       {r.within && <small>±{TOLERANCE}%p 이내</small>}
     </span>

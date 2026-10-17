@@ -31,11 +31,6 @@ export function unitOf(symbol: string) {
   return symbol === GOLD_GRAM ? 'g' : isCrypto(symbol) ? '개' : '주'
 }
 
-/** 보유량 표시 — 코인은 소수점 8자리까지 */
-export function formatQty(symbol: string, qty: number) {
-  return qty.toLocaleString('ko-KR', { maximumFractionDigits: isCrypto(symbol) ? 8 : 3 })
-}
-
 /** 국내 ETF 별명 (예: 슈드) — 코드 기준 */
 const KR_TAGS: Record<string, string> = {
   '458730': '슈드 schd',
@@ -119,7 +114,8 @@ export function secondaryLabel(h: { symbol: string; name: string }) {
 /** 화면에 보여줄 짧은 코드 (360750.KS → 360750, BTC-USD → BTC) */
 export function displayTicker(symbol: string) {
   if (symbol === GOLD_GRAM) return '금통장'
-  if (isCrypto(symbol)) return symbol.replace(/-USD$/, '')
+  // Yahoo는 이름이 겹치는 코인에 번호를 붙임 (SUI20947-USD → SUI)
+  if (isCrypto(symbol)) return symbol.replace(/-USD$/, '').replace(/^([A-Z]{2,})\d{4,}$/, '$1')
   return symbol.replace(/\.(KS|KQ)$/, '')
 }
 
@@ -127,7 +123,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[\s()·.-]/g, '')
 
 /** 국내 전체 목록(시가총액 순) + 대표 미국 ETF에서 검색 */
 export function searchPresets(q: string, krRows: KrEtfRow[], limit = 40): EtfPreset[] {
-  const all = [...SPECIAL, ...krPresets(krRows), ...US_PRESETS, ...CRYPTO_PRESETS]
+  const all = [...SPECIAL, ...krPresets(krRows), ...US_PRESETS]
   const s = norm(q)
   if (!s) return all.slice(0, 10)
   const words = q.trim().toLowerCase().split(/\s+/).map(norm).filter(Boolean)
@@ -139,4 +135,15 @@ export function searchPresets(q: string, krRows: KrEtfRow[], limit = 40): EtfPre
   const score = (p: EtfPreset) =>
     displayTicker(p.symbol).toLowerCase() === s ? 0 : norm(p.name).includes(s) ? 1 : 2
   return hits.sort((a, b) => score(a) - score(b)).slice(0, limit)
+}
+
+/** 코인 현물 검색 — 대표 코인 목록에서 (목록에 없으면 영문 티커로 Yahoo 검색) */
+export function searchCrypto(q: string): EtfPreset[] {
+  const s = norm(q)
+  if (!s) return CRYPTO_PRESETS
+  const words = q.trim().toLowerCase().split(/\s+/).map(norm).filter(Boolean)
+  return CRYPTO_PRESETS.filter((p) => {
+    const hay = norm(`${p.symbol}${p.name}${p.tags ?? ''}`)
+    return words.every((w) => hay.includes(w))
+  })
 }

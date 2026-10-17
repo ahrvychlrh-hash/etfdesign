@@ -27,7 +27,7 @@ export interface EtfStats {
   updatedAt: string
 }
 
-export const ACCOUNT_KINDS = ['일반', 'ISA', '연금저축', 'IRP', '해외주식', '금통장', '코인', '비상금'] as const
+export const ACCOUNT_KINDS = ['일반', 'ISA', '연금저축', 'IRP', '해외주식', '금통장', '비상금'] as const
 export type AccountKind = (typeof ACCOUNT_KINDS)[number]
 
 export interface Account {
@@ -71,6 +71,20 @@ export interface AppState {
   reinvests: Reinvest[]
   /** 부동산 — 총자산에는 넣고 수익률 계산에서는 뺌 */
   realEstates: RealEstate[]
+  /** 코인 현물 — 부동산처럼 총자산에만 넣음 (코인 ETF는 holdings에서 수익률 계산) */
+  cryptos: CryptoAsset[]
+}
+
+export interface CryptoAsset {
+  id: string
+  /** Yahoo 형식 'BTC-USD' */
+  symbol: string
+  name: string
+  /** 보유 수량 (소수 가능) — 평가금 = 수량 × 현재가 */
+  quantity: number
+  /** 원화 환산 1개 가격 */
+  price: number
+  updatedAt?: string
 }
 
 export interface RealEstate {

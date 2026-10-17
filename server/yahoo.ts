@@ -276,19 +276,19 @@ export function getBenchmarks(): Promise<Record<string, BenchmarkResult>> {
   })
 }
 
-export function searchEtf(query: string): Promise<SearchItem[]> {
+/** type 'etf': 해외 ETF, 'crypto': 코인 현물(달러 시세 BTC-USD — 원화 환산은 getQuote에서) */
+export function searchEtf(query: string, type: 'etf' | 'crypto' = 'etf'): Promise<SearchItem[]> {
   const q = query.trim()
   if (!q) return Promise.resolve([])
-  return cached(`s:${q.toLowerCase()}`, 60 * 60_000, async () => {
+  return cached(`s:${type}:${q.toLowerCase()}`, 60 * 60_000, async () => {
     const j = await getJson(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=12&newsCount=0`,
     )
     return ((j.quotes ?? []) as Record<string, string>[])
-      .filter(
-        (x) =>
-          (x.quoteType === 'ETF' && !/\.(KS|KQ)$/.test(x.symbol)) ||
-          // 가상자산은 달러 시세(BTC-USD)만 — 원화 환산은 getQuote에서
-          (x.quoteType === 'CRYPTOCURRENCY' && /^[A-Z0-9]+-USD$/.test(x.symbol)),
+      .filter((x) =>
+        type === 'crypto'
+          ? x.quoteType === 'CRYPTOCURRENCY' && /^[A-Z0-9]+-USD$/.test(x.symbol)
+          : x.quoteType === 'ETF' && !/\.(KS|KQ)$/.test(x.symbol),
       )
       .map((x) => ({ symbol: x.symbol, name: x.longname ?? x.shortname ?? x.symbol, exchange: x.exchDisp ?? '' }))
   })
@@ -303,7 +303,8 @@ export async function handleApi(url: URL): Promise<{ status: number; body: unkno
       return { status: 200, body: await getQuote(symbol) }
     }
     if (url.pathname.endsWith('/search')) {
-      return { status: 200, body: await searchEtf(url.searchParams.get('q') ?? '') }
+      const type = url.searchParams.get('type') === 'crypto' ? 'crypto' : 'etf'
+      return { status: 200, body: await searchEtf(url.searchParams.get('q') ?? '', type) }
     }
     if (url.pathname.endsWith('/benchmarks')) {
       return { status: 200, body: await getBenchmarks() }

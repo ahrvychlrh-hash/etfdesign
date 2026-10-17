@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { isReserve, type Account, type Holding, type Profile, type RealEstate, type Reinvest } from '../lib/types'
+import { isReserve, type Account, type CryptoAsset, type Holding, type Profile, type RealEstate, type Reinvest } from '../lib/types'
 import { RealEstateSection } from './RealEstateSection'
+import { CryptoSection } from './CryptoSection'
 import { realPrincipal, reinvestTotal } from '../lib/history'
 import type { Plan } from '../lib/plan'
 import { colorMap } from '../lib/plan'
@@ -16,7 +17,7 @@ import {
   portfolioSummary,
 } from '../lib/finance'
 import { pct, won, wonShort } from '../lib/format'
-import { formatQty, isCrypto, primaryLabel, secondaryLabel, unitOf } from '../lib/presets'
+import { primaryLabel, secondaryLabel, unitOf } from '../lib/presets'
 import { Section, Toggle } from './ui'
 
 interface Props {
@@ -36,6 +37,9 @@ interface Props {
   realEstates: RealEstate[]
   onSaveRealEstate: (r: RealEstate) => void
   onDeleteRealEstate: (id: string) => void
+  cryptos: CryptoAsset[]
+  onSaveCrypto: (c: CryptoAsset) => void
+  onDeleteCrypto: (id: string) => void
 }
 
 export function Holdings(props: Props) {
@@ -61,17 +65,13 @@ export function Holdings(props: Props) {
       <header className="hero hero--compact">
         <div className="hero__top">
           <span className="logo">보유 ETF</span>
-          {holdings.length > 0 && (
+          {(holdings.length > 0 || props.cryptos.length > 0) && (
             <button className="pill-btn" onClick={onRefresh} disabled={refreshing}>
               {refreshing ? '불러오는 중…' : '시세 새로고침'}
             </button>
           )}
         </div>
-        <p className="hero__hello">
-          {plan.reserve > 0 || plan.crypto > 0
-            ? `투자 평가금 (${[plan.reserve > 0 && '비상금', plan.crypto > 0 && '코인'].filter(Boolean).join('·')} 제외)`
-            : '총 평가금'}
-        </p>
+        <p className="hero__hello">{plan.reserve > 0 ? '투자 평가금 (비상금 제외)' : '총 평가금'}</p>
         <h1 className="hero__title">
           <b>{won(etf.value)}</b>
         </h1>
@@ -92,7 +92,6 @@ export function Holdings(props: Props) {
           </p>
         )}
         {plan.reserve > 0 && <p className="hero__meta">비상금 {wonShort(plan.reserve)}은 총자산에만 더하고 수익률에서는 뺐어요</p>}
-        {plan.crypto > 0 && <p className="hero__meta">코인 {wonShort(plan.crypto)}은 부동산처럼 총자산에만 더하고 수익률에서는 뺐어요</p>}
         <img className="hero__corner" src={ICONS.chart} alt="" />
       </header>
 
@@ -125,11 +124,7 @@ export function Holdings(props: Props) {
           {accounts.map((acc) => {
             const list = holdings.filter((h) => h.accountId === acc.id).sort((a, b) => holdingValue(b) - holdingValue(a))
             const sum = portfolioSummary(list)
-            // 코인은 기대 수익률에서 뺌
-            const rate = portfolioReturn(
-              list.filter((h) => !isCrypto(h.symbol)),
-              profile.reinvest,
-            )
+            const rate = portfolioReturn(list, profile.reinvest)
             // 빈 계좌는 접을 것이 없으니 추가 버튼만 바로 보여줌
             const expandable = list.length > 0 || isReserve(acc)
             const isOpen = !expandable || opened.has(acc.id)
@@ -180,8 +175,7 @@ export function Holdings(props: Props) {
                       h={h}
                       color={colors.get(h.id)}
                       reinvest={profile.reinvest}
-                      total={isReserve(acc) || isCrypto(h.symbol) ? 0 : etf.value}
-                      excluded={isReserve(acc) ? '비상금' : isCrypto(h.symbol) ? '코인' : undefined}
+                      total={isReserve(acc) ? 0 : etf.value}
                       onEdit={onEdit}
                     />
                   ))}
@@ -207,6 +201,8 @@ export function Holdings(props: Props) {
         </div>
       </Section>
 
+      <CryptoSection items={props.cryptos} onSave={props.onSaveCrypto} onDelete={props.onDeleteCrypto} />
+
       <RealEstateSection items={props.realEstates} onSave={props.onSaveRealEstate} onDelete={props.onDeleteRealEstate} />
     </>
   )
@@ -217,15 +213,12 @@ function HoldingCard({
   color,
   reinvest,
   total,
-  excluded,
   onEdit,
 }: {
   h: Holding
   color?: string
   reinvest: boolean
   total: number
-  /** 수익률에서 빼는 이유 (비상금·코인) */
-  excluded?: string
   onEdit: (h: Holding) => void
 }) {
   const v = holdingValue(h)
@@ -240,7 +233,7 @@ function HoldingCard({
         <span className="list__main">
           <b>{primaryLabel(h)}</b>
           <span className="muted">
-            {secondaryLabel(h)} · {formatQty(h.symbol, h.quantity)}{unitOf(h.symbol)} · 평균 {won(avgPrice(h))}
+            {secondaryLabel(h)} · {h.quantity.toLocaleString('ko-KR')}{unitOf(h.symbol)} · 평균 {won(avgPrice(h))}
           </span>
         </span>
         <span className="list__num">
@@ -249,16 +242,12 @@ function HoldingCard({
         </span>
       </div>
       <div className="tags">
-        {excluded !== '코인' && (
-          <>
-            <span className="tag tag--blue">기대 연 {expectedReturn(h, reinvest).toFixed(1)}%</span>
-            <span className="tag">배당 {div > 0 ? `연 ${wonShort(div)}` : '없음'}</span>
-          </>
-        )}
-        {excluded ? (
-          <span className="tag tag--warn">{excluded} · 총자산만 · 수익률 제외</span>
+        <span className="tag tag--blue">기대 연 {expectedReturn(h, reinvest).toFixed(1)}%</span>
+        <span className="tag">배당 {div > 0 ? `연 ${wonShort(div)}` : '없음'}</span>
+        {total ? (
+          <span className="tag">비중 {((v / total) * 100).toFixed(0)}%</span>
         ) : (
-          <span className="tag">비중 {total ? ((v / total) * 100).toFixed(0) : 0}%</span>
+          <span className="tag tag--warn">비상금 · 수익률 제외</span>
         )}
         {h.priceMode === 'manual' && <span className="tag tag--warn">평가금 직접입력</span>}
       </div>

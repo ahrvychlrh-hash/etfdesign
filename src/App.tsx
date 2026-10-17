@@ -3,7 +3,7 @@ import type { Account, AppState, Holding, Profile } from './lib/types'
 import { clearState, emptyState, loadState, saveState } from './lib/storage'
 import { fetchQuote, loadBenchmarks } from './lib/api'
 import { setBenchmarks } from './lib/expected'
-import { computePlan, DEFAULT_RATE, splitReserve } from './lib/plan'
+import { computePlan, cryptoTotal, DEFAULT_RATE, splitReserve } from './lib/plan'
 import { holdingValue } from './lib/finance'
 import { monthKey, realPrincipal } from './lib/history'
 import { Onboarding } from './components/Onboarding'
@@ -29,6 +29,8 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false)
   const holdingsRef = useRef(state.holdings)
   holdingsRef.current = state.holdings
+  const cryptosRef = useRef(state.cryptos)
+  cryptosRef.current = state.cryptos
 
   useEffect(() => saveState(state), [state])
 
@@ -50,14 +52,14 @@ export default function App() {
     }))
   }, [state.profile, state.holdings, state.accounts, state.reinvests, state.snapshots])
 
-  /** 현재가·과거 성과·배당을 다시 불러옵니다. */
+  /** 현재가·과거 성과·배당을 다시 불러옵니다. (코인 현물 시세 포함) */
   const refresh = useCallback(async (force: boolean) => {
+    const stale = (at?: string) => force || !at || Date.now() - new Date(at).getTime() > STALE_MS
     const symbols = [
-      ...new Set(
-        holdingsRef.current
-          .filter((h) => force || !h.stats || Date.now() - new Date(h.stats.updatedAt).getTime() > STALE_MS)
-          .map((h) => h.symbol),
-      ),
+      ...new Set([
+        ...holdingsRef.current.filter((h) => stale(h.stats?.updatedAt)).map((h) => h.symbol),
+        ...cryptosRef.current.filter((c) => stale(c.updatedAt)).map((c) => c.symbol),
+      ]),
     ]
     if (!symbols.length) return
     setRefreshing(true)
@@ -70,6 +72,10 @@ export default function App() {
         const q = bySymbol.get(h.symbol.toUpperCase())
         if (!q) return h
         return { ...h, stats: q.stats, currentPrice: h.priceMode === 'auto' ? q.price : h.currentPrice }
+      }),
+      cryptos: s.cryptos.map((c) => {
+        const q = bySymbol.get(c.symbol.toUpperCase())
+        return q ? { ...c, price: q.price, updatedAt: q.stats.updatedAt } : c
       }),
     }))
     setRefreshing(false)
@@ -95,7 +101,7 @@ export default function App() {
 
   if (!state.profile || editingProfile) {
     const ps = splitReserve(state.holdings, state.accounts)
-    const preview = state.profile ? computePlan(state.profile, ps.investHoldings, state.realEstates, ps.reserveTotal, ps.cryptoTotal) : null
+    const preview = state.profile ? computePlan(state.profile, ps.investHoldings, state.realEstates, ps.reserveTotal, cryptoTotal(state.cryptos)) : null
     return (
       <Onboarding
         initial={state.profile}
@@ -116,7 +122,7 @@ export default function App() {
   // 비상금 계좌(ETF·현금)는 총자산에만 넣고 투자 계산에서는 뺌
   const split = splitReserve(holdings, accounts)
   const investHoldings = split.investHoldings
-  const plan = computePlan(profile, investHoldings, state.realEstates, split.reserveTotal, split.cryptoTotal)
+  const plan = computePlan(profile, investHoldings, state.realEstates, split.reserveTotal, cryptoTotal(state.cryptos))
   const reinvest = (v: boolean) => updateProfile({ reinvest: v })
   const counts = new Map<string, number>()
   holdings.forEach((h) => counts.set(h.accountId, (counts.get(h.accountId) ?? 0) + 1))
@@ -171,6 +177,14 @@ export default function App() {
                 }))
               }
               onDeleteRealEstate={(id) => setState((s) => ({ ...s, realEstates: s.realEstates.filter((x) => x.id !== id) }))}
+              cryptos={state.cryptos}
+              onSaveCrypto={(c) =>
+                setState((s) => ({
+                  ...s,
+                  cryptos: s.cryptos.some((x) => x.id === c.id) ? s.cryptos.map((x) => (x.id === c.id ? c : x)) : [...s.cryptos, c],
+                }))
+              }
+              onDeleteCrypto={(id) => setState((s) => ({ ...s, cryptos: s.cryptos.filter((x) => x.id !== id) }))}
             />
           )}
           {tab === 'history' && (
