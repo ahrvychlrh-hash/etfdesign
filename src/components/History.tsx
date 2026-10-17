@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { Holding, Reinvest, Snapshot } from '../lib/types'
 import { ICONS } from '../lib/characters'
 import { holdingValue } from '../lib/finance'
@@ -28,18 +28,10 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
   const principal = realPrincipal(holdings, reinvests)
   const gain = value - principal
   const recent = rows.slice(-24)
-  // 버튼을 누를 때마다 값이 바뀌어 아래 월별 기록의 입력 폼을 엶
-  const [addTick, setAddTick] = useState(0)
-  const addButton = (
-    <button className="card card--btn hist-add" onClick={() => setAddTick((t) => t + 1)}>
-      <img src={ICONS.calendar} alt="" className="icon3d icon3d--xs" />
-      <span className="list__main">
-        <b>+ 과거 월말 자산 입력</b>
-        <span className="muted">앱을 쓰기 전 달의 기록도 넣을 수 있어요</span>
-      </span>
-      <span className="chev">›</span>
-    </button>
-  )
+  // 원금을 아는 달만 수익률 그래프에
+  const withPct = recent.filter((r) => r.gainPct != null)
+  const dividendRe = reinvestTotal(reinvests, 'dividend')
+  const sellRe = reinvestTotal(reinvests, 'sell')
 
   return (
     <>
@@ -65,8 +57,29 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
         <img className="hero__corner" src={ICONS.calendar} alt="" />
       </header>
 
-      <div className="card float-row--single hist-note">
-        매달 앱을 연 마지막 시점의 자산이 그 달의 월말 기록이 돼요. 지난 기록은 아래에서 직접 넣거나 고칠 수 있어요.
+      <div className="card float-row--single hist-note hist-summary">
+        <span>
+          <span className="muted">총 원금</span>
+          <b>{wonShort(principal)}</b>
+        </span>
+        <span>
+          <span className="muted">평가금</span>
+          <b>{wonShort(value)}</b>
+        </span>
+        <span>
+          <span className="muted">수익금</span>
+          <b className={tone(gain)}>
+            {gain >= 0 ? '+' : ''}
+            {wonShort(gain)}
+          </b>
+        </span>
+        <span>
+          <span className="muted">재투자</span>
+          <b>{wonShort(dividendRe + sellRe)}</b>
+          <small className="muted">
+            배당 {wonShort(dividendRe)} · 매도 후 {wonShort(sellRe)}
+          </small>
+        </span>
       </div>
 
       {rows.length === 0 ? (
@@ -76,12 +89,10 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
             <b>아직 기록이 없어요</b>
             <span className="muted">ETF를 등록하면 이번 달부터 자동으로 기록돼요</span>
           </div>
-          {addButton}
         </div>
       ) : (
         <>
           <Section title="월말 자산">
-            {addButton}
             <div className="card">
               <MonthBars
                 bars={recent.map((r) => ({ key: r.month, month: r.month, value: r.value, faded: r.ongoing }))}
@@ -93,25 +104,36 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
 
           <Section title="월 수익률">
             <div className="card">
-              {recent.some((r) => r.ret != null) ? (
-                <MonthBars
-                  height={160}
-                  bars={recent
-                    .filter((r) => r.ret != null)
-                    .map((r) => ({
+              {withPct.length > 0 ? (
+                <>
+                  <div className="chart-legend">
+                    <span>
+                      <i className="chart-legend__bar" /> 수익률 (막대)
+                    </span>
+                    <span>
+                      <i className="chart-legend__line" /> 수익금 (선)
+                    </span>
+                  </div>
+                  <MonthBars
+                    height={180}
+                    bars={withPct.map((r) => ({
                       key: r.month,
                       month: r.month,
-                      value: r.ret as number,
-                      color: (r.ret as number) >= 0 ? UP : DOWN,
+                      value: r.gainPct as number,
+                      color: (r.gainPct as number) >= 0 ? UP : DOWN,
                       faded: r.ongoing,
                     }))}
-                  format={(v) => `${v.toFixed(1)}%`}
-                  tooltip={(b) => <RowTip row={recent.find((r) => r.month === b.month)!} />}
-                />
+                    line={{ values: withPct.map((r) => r.gain), format: wonAxis }}
+                    format={(v) => `${v.toFixed(1)}%`}
+                    tooltip={(b) => <RowTip row={recent.find((r) => r.month === b.month)!} />}
+                  />
+                </>
               ) : (
-                <p className="muted">두 달 이상 기록이 쌓이면 월 수익률이 보여요.</p>
+                <p className="muted">월별 기록에 원금이 있어야 수익률이 보여요.</p>
               )}
-              <p className="hint hint--sm">빨강은 수익(+), 파랑은 손실(−)이에요. 옅은 막대는 아직 진행 중인 이번 달이에요.</p>
+              <p className="hint hint--sm">
+                그달 말 기준으로 넣은 원금 대비 얼마나 벌었는지예요. 빨강은 수익(+), 파랑은 손실(−), 옅은 막대는 진행 중인 이번 달이에요.
+              </p>
             </div>
           </Section>
 
@@ -124,14 +146,10 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
                     {y.ongoing && <span className="tag tag--xs">진행 중</span>}
                     <span className="muted">{y.months}개월 기준</span>
                   </div>
-                  <div className="year__grid">
+                  <div className="year__grid year__grid--2">
                     <span>
                       <span className="muted">연 수익률</span>
                       <b className={tone(y.yearReturn)}>{y.months ? pct(y.yearReturn) : '—'}</b>
-                    </span>
-                    <span>
-                      <span className="muted">월 평균</span>
-                      <b className={tone(y.avgMonthly)}>{y.months ? pct(y.avgMonthly, 2) : '—'}</b>
                     </span>
                     <span>
                       <span className="muted">수익금</span>
@@ -149,7 +167,7 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
         </>
       )}
 
-      <MonthTable rows={rows} onSnapshot={onSnapshot} snapshots={snapshots} addTick={addTick} />
+      <MonthTable rows={rows} onSnapshot={onSnapshot} snapshots={snapshots} />
 
       <ReinvestSection reinvests={reinvests} onAdd={onAddReinvest} onUpdate={onUpdateReinvest} onDelete={onDeleteReinvest} />
     </>
@@ -172,12 +190,13 @@ function RowTip({ row }: { row: MonthRow }) {
       </div>
       <div className="tooltip__row">
         수익금{' '}
-        <b className={tone(row.profit ?? 0)}>
-          {row.profit == null ? '—' : `${row.profit >= 0 ? '+' : ''}${wonShort(row.profit)}`}
+        <b className={tone(row.gain)}>
+          {row.gain >= 0 ? '+' : ''}
+          {wonShort(row.gain)}
         </b>
       </div>
       <div className="tooltip__row">
-        수익률 <b className={tone(row.ret ?? 0)}>{row.ret == null ? '—' : pct(row.ret, 2)}</b>
+        수익률 <b className={tone(row.gainPct ?? 0)}>{row.gainPct == null ? '—' : pct(row.gainPct, 2)}</b>
       </div>
     </>
   )
@@ -195,13 +214,10 @@ function MonthTable({
   rows,
   snapshots,
   onSnapshot,
-  addTick,
 }: {
   rows: MonthRow[]
   snapshots: Record<string, Snapshot>
   onSnapshot: Props['onSnapshot']
-  /** 위쪽 '과거 월말 자산 입력' 버튼을 누를 때마다 바뀜 */
-  addTick: number
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [month, setMonth] = useState('')
@@ -223,13 +239,6 @@ function MonthTable({
     setPrincipal(s?.principal ?? 0)
     setSavedNote('')
   }
-
-  useEffect(() => {
-    if (!addTick) return
-    open(null)
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
-    // 버튼을 눌렀을 때만 실행 (open은 의존성에서 일부러 뺌)
-  }, [addTick])
 
   const valid = /^\d{4}-\d{2}$/.test(month) && value > 0
   function save() {
@@ -322,10 +331,11 @@ function MonthTable({
                       {r.manual && <span className="tag tag--xs tag--warn">직접</span>}
                     </td>
                     <td className="num">{wonShort(r.value)}</td>
-                    <td className={`num ${tone(r.profit ?? 0)}`}>
-                      {r.profit == null ? '—' : `${r.profit >= 0 ? '+' : ''}${wonShort(r.profit)}`}
+                    <td className={`num ${tone(r.gain)}`}>
+                      {r.gain >= 0 ? '+' : ''}
+                      {wonShort(r.gain)}
                     </td>
-                    <td className={`num ${tone(r.ret ?? 0)}`}>{r.ret == null ? '—' : pct(r.ret, 2)}</td>
+                    <td className={`num ${tone(r.gainPct ?? 0)}`}>{r.gainPct == null ? '—' : pct(r.gainPct, 2)}</td>
                   </tr>
                 )
               })}

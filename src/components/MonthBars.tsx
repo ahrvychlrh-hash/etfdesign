@@ -18,12 +18,15 @@ interface Props {
   /** 막대 위 툴팁 내용 */
   tooltip: (bar: Bar) => ReactNode
   height?: number
+  /** 막대 위에 겹쳐 그리는 선 (막대와 같은 순서) — 오른쪽 눈금, 0 위치는 막대와 같음 */
+  line?: { values: number[]; format: (v: number) => string }
 }
 
 const PAD = { top: 12, right: 8, bottom: 30, left: 44 }
+const LINE_COLOR = '#5b6478'
 
 /** 월별 막대 그래프 — 0을 기준으로 위(+)·아래(-)로 그립니다. 해가 바뀌는 곳에 연도를 표시합니다. */
-export function MonthBars({ bars, format, tooltip, height = 190 }: Props) {
+export function MonthBars({ bars, format, tooltip, height = 190, line }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(320)
   const [hover, setHover] = useState<number | null>(null)
@@ -36,10 +39,16 @@ export function MonthBars({ bars, format, tooltip, height = 190 }: Props) {
     return () => ro.disconnect()
   }, [])
 
-  const max = Math.max(0, ...bars.map((b) => b.value))
-  const min = Math.min(0, ...bars.map((b) => b.value))
+  const padRight = line ? 48 : PAD.right
+  // 선 값을 막대 단위로 바꾸는 비율 — 두 값의 최대 크기를 맞춤
+  const barAbs = Math.max(...bars.map((b) => Math.abs(b.value)), 0)
+  const lineAbs = line ? Math.max(...line.values.map((v) => Math.abs(v)), 0) : 0
+  const k = barAbs > 0 && lineAbs > 0 ? barAbs / lineAbs : 1
+  const lineAsBar = line ? line.values.map((v) => v * k) : []
+  const max = Math.max(0, ...bars.map((b) => b.value), ...lineAsBar)
+  const min = Math.min(0, ...bars.map((b) => b.value), ...lineAsBar)
   const span = max - min || 1
-  const innerW = width - PAD.left - PAD.right
+  const innerW = width - PAD.left - padRight
   const innerH = height - PAD.top - PAD.bottom
   const y = (v: number) => PAD.top + ((max - v) / span) * innerH
   const slot = innerW / Math.max(bars.length, 1)
@@ -55,10 +64,15 @@ export function MonthBars({ bars, format, tooltip, height = 190 }: Props) {
       <svg width={width} height={height} role="img" aria-label="월별 그래프">
         {ticks.map((t, i) => (
           <g key={i}>
-            <line x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} className={t === 0 ? 'axis-zero' : 'grid'} />
+            <line x1={PAD.left} x2={width - padRight} y1={y(t)} y2={y(t)} className={t === 0 ? 'axis-zero' : 'grid'} />
             <text x={PAD.left - 6} y={y(t)} className="axis" textAnchor="end" dominantBaseline="middle">
               {format(t)}
             </text>
+            {line && (
+              <text x={width - padRight + 6} y={y(t)} className="axis" textAnchor="start" dominantBaseline="middle">
+                {line.format(t / k)}
+              </text>
+            )}
           </g>
         ))}
         {bars.map((b, i) => {
@@ -93,6 +107,20 @@ export function MonthBars({ bars, format, tooltip, height = 190 }: Props) {
             </g>
           )
         })}
+        {line && bars.length > 0 && (
+          <g pointerEvents="none">
+            <polyline
+              points={lineAsBar.map((v, i) => `${x(i)},${y(v)}`).join(' ')}
+              fill="none"
+              stroke={LINE_COLOR}
+              strokeWidth={2}
+              strokeLinejoin="round"
+            />
+            {lineAsBar.map((v, i) => (
+              <circle key={i} cx={x(i)} cy={y(v)} r={hover === i ? 4 : 2.5} fill="#fff" stroke={LINE_COLOR} strokeWidth={2} />
+            ))}
+          </g>
+        )}
         {/* 막대보다 넓은 마우스·터치 영역 */}
         {bars.map((b, i) => (
           <rect

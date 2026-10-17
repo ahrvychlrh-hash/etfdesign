@@ -2276,14 +2276,17 @@ b {
 
 /* ---------- 명언: 배경 위 흰 글씨 ---------- */
 .hero__quote {
+  /* 왼쪽 끝과 캐릭터 사이 빈 공간의 가운데, 캐릭터 높이의 가운데쯤 */
   position: absolute;
   left: 0;
-  /* 캐릭터 영역의 왼쪽 아래 */
-  bottom: 6px;
+  right: 175px;
+  top: 58%;
+  transform: translateY(-50%);
   z-index: 2;
-  max-width: 150px;
   margin: 0;
+  padding: 0 6px;
   color: #fff;
+  text-align: center;
 }
 .hero__quote blockquote {
   margin: 0;
@@ -2630,14 +2633,6 @@ b {
   margin: 0;
   font-weight: 700;
 }
-.hist-add {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  margin-bottom: 10px;
-  text-align: left;
-}
 .hero__progress--tight {
   margin-top: 6px;
 }
@@ -2703,4 +2698,77 @@ b {
 }
 .sim-reset {
   margin-top: 12px;
+}
+/* 월 수익률 그래프 범례 */
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chart-legend__bar {
+  width: 8px;
+  height: 10px;
+  border-radius: 2px;
+  background: #f04452;
+}
+.chart-legend__line {
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: #5b6478;
+}
+.year__grid--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+/* 월별 기록 표: 휴대폰 폭에서 넘치지 않게 칸 여백을 줄임 */
+.hist-table th,
+.hist-table td {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.hist-table th:first-child,
+.hist-table td:first-child {
+  padding-left: 12px;
+}
+.hist-table th:last-child,
+.hist-table td:last-child {
+  padding-right: 12px;
+}
+.hist-table td {
+  font-size: 12.5px;
+}
+.hist-table .tag {
+  margin-left: 4px;
+}
+/* 자산 기록 위 요약: 총 원금·평가금·수익금·재투자 */
+.hist-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+.hist-summary > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+.hist-summary b {
+  font-size: 16px;
+  color: var(--text);
+}
+.hist-summary b.tone-up {
+  color: var(--up);
+}
+.hist-summary b.tone-down {
+  color: var(--down);
+}
+.hist-summary small {
+  font-size: 10.5px;
 }

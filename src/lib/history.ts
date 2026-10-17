@@ -32,6 +32,10 @@ export interface MonthRow {
   profit: number | null
   /** 이번 달 수익률 (%) */
   ret: number | null
+  /** 그달 말 기준 총 수익금 = 월말 자산 - 그때까지 넣은 원금 */
+  gain: number
+  /** 그달 말 기준 원금 대비 수익률 (%) — 원금을 모르면 null */
+  gainPct: number | null
   /** 아직 끝나지 않은 이번 달 */
   ongoing: boolean
   manual?: boolean
@@ -57,7 +61,20 @@ export function monthRows(snapshots: Record<string, Snapshot>, now = new Date())
       const base = prev.value + newMoney / 2
       ret = base > 0 ? (profit / base) * 100 : null
     }
-    return { month, value: s.value, principal: s.principal, newMoney, profit, ret, ongoing: month === current, manual: s.manual }
+    const gain = s.value - s.principal
+    const gainPct = s.principal > 0 ? (gain / s.principal) * 100 : null
+    return {
+      month,
+      value: s.value,
+      principal: s.principal,
+      newMoney,
+      profit,
+      ret,
+      gain,
+      gainPct,
+      ongoing: month === current,
+      manual: s.manual,
+    }
   })
 }
 
@@ -65,8 +82,6 @@ export interface YearSummary {
   year: string
   /** 월 수익률을 이어서 곱한 연 수익률 (%) */
   yearReturn: number
-  /** 월 평균 수익률 (%) */
-  avgMonthly: number
   profit: number
   endValue: number
   months: number
@@ -86,7 +101,6 @@ export function yearSummaries(rows: MonthRow[]): YearSummary[] {
       return {
         year,
         yearReturn: (growth - 1) * 100,
-        avgMonthly: withRet.length ? withRet.reduce((s, r) => s + (r.ret as number), 0) / withRet.length : 0,
         profit: list.reduce((s, r) => s + (r.profit ?? 0), 0),
         endValue: list[list.length - 1].value,
         months: withRet.length,
