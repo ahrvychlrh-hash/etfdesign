@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { Holding, Profile } from '../lib/types'
 import type { Plan } from '../lib/plan'
 import { colorMap } from '../lib/plan'
-import { ICONS, MASCOT_NAME } from '../lib/characters'
+import { character, ICONS, withWa } from '../lib/characters'
 import { Mascot } from './Mascot'
 import { holdingValue, project, requiredMonthly } from '../lib/finance'
 import { duration, pct, wonShort } from '../lib/format'
@@ -45,7 +45,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
             목표 {wonShort(profile.target)}
           </button>
         </div>
-        <p className="hero__hello">{MASCOT_NAME}와 함께 차곡차곡</p>
+        <p className="hero__hello">{withWa(character(profile.character).name)} 함께 차곡차곡</p>
         <h1 className="hero__title">
           총 자산 <b>{wonShort(plan.total)}</b>
         </h1>
@@ -57,7 +57,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
         </div>
         <div className="hero__stage">
           <p className="bubble bubble--side">{tip}</p>
-          <Mascot className="hero__mascot" />
+          <Mascot id={profile.character} className="hero__mascot" />
           <img className="hero__spark" src={ICONS.sparkles} alt="" />
         </div>
       </header>

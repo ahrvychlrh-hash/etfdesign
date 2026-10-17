@@ -956,8 +956,8 @@ b {
   width: 100%;
   max-width: 480px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  grid-template-columns: repeat(4, 1fr);
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   border-radius: 24px 24px 0 0;
@@ -1697,4 +1697,298 @@ b {
   right: auto;
   left: 150px;
   top: 10px;
+}
+
+/* ---------- 리밸런싱 ---------- */
+.stack--top {
+  margin-top: -36px;
+  position: relative;
+}
+.reb-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: -36px 16px 0;
+  position: relative;
+}
+.reb-controls__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reb-controls .field--lg {
+  height: 52px;
+}
+.reb-controls .field--lg input {
+  font-size: 20px;
+}
+.reinvest--flat {
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.sum-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+.sum-badge.is-ok {
+  background: #e3f6ec;
+  color: #127a4f;
+}
+.sum-badge.is-warn {
+  background: #fff4e0;
+  color: #9a5f00;
+}
+.reb-fill {
+  margin-bottom: 10px;
+}
+.reb-table-wrap {
+  padding: 4px 0;
+  overflow-x: auto;
+}
+.reb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.reb-table th {
+  padding: 8px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.reb-table td {
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.reb-table tr:last-child td {
+  border-bottom: 0;
+}
+.reb-table th:first-child,
+.reb-table td:first-child {
+  padding-left: 14px;
+  width: 42%;
+}
+.reb-table th:last-child,
+.reb-table td:last-child {
+  padding-right: 14px;
+}
+.reb-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.reb-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.reb-name .list__main b {
+  font-size: 14px;
+}
+.reb-name .list__main .muted {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reb-bars {
+  position: relative;
+  height: 6px;
+  margin: 6px 0 0 16px;
+  border-radius: 999px;
+  background: #eef0f6;
+}
+.reb-bars__cur {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+}
+.reb-bars__tgt {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--text);
+}
+.field--pct {
+  width: 64px;
+  height: 34px;
+  margin-left: auto;
+  padding: 0 8px;
+  border-radius: 10px;
+}
+.field--pct input {
+  text-align: right;
+}
+.act {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 12px;
+}
+.act small {
+  color: var(--text-3);
+  font-size: 11px;
+}
+.act--buy b {
+  color: var(--up);
+}
+.act--sell b {
+  color: var(--down);
+}
+.act--hold {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.reb-sum {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.reb-sum > span {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: var(--shadow);
+  font-size: 12px;
+}
+.reb-sum b {
+  font-size: 16px;
+}
+.alloc--inline {
+  margin: 0 0 12px;
+}
+.legend-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+  font-size: 13px;
+}
+.legend-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend-list b {
+  margin-left: auto;
+}
+
+/* 나라·섹터 비중 행 */
+.exp-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.exp-row:first-child {
+  padding-top: 0;
+}
+.exp-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.exp-row__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.exp-row__pct {
+  margin-left: auto;
+  font-weight: 700;
+}
+.exp-row__bar {
+  height: 6px;
+  margin: 6px 0 4px;
+  border-radius: 999px;
+  background: #eef0f6;
+  overflow: hidden;
+}
+.exp-row__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary);
+}
+.exp-row__hint {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.level {
+  flex: none;
+  min-width: 58px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.level--high {
+  background: #ffe9ea;
+  color: #c4202e;
+}
+.level--ok {
+  background: #e3f6ec;
+  color: #127a4f;
+}
+.level--low {
+  background: #fff4e0;
+  color: #9a5f00;
+}
+
+/* 리밸런싱 표: 모바일 폭에 맞게 열 너비 고정 */
+.reb-table {
+  table-layout: fixed;
+}
+.reb-table th:nth-child(1),
+.reb-table td:nth-child(1) {
+  width: auto;
+}
+.reb-table th:nth-child(2),
+.reb-table td:nth-child(2) {
+  width: 52px;
+}
+.reb-table th:nth-child(3),
+.reb-table td:nth-child(3) {
+  width: 76px;
+}
+.reb-table th:nth-child(4),
+.reb-table td:nth-child(4) {
+  width: 96px;
+}
+.reb-table td:first-child {
+  overflow: hidden;
+}
+.reb-name .list__main {
+  overflow: hidden;
+}
+.reb-name .list__main b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reb-table-wrap {
+  overflow-x: visible;
+}
+.act b {
+  white-space: nowrap;
+  font-size: 12px;
 }

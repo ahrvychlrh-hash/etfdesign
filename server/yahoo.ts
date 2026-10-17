@@ -200,6 +200,59 @@ export function getQuote(symbol: string): Promise<QuoteResult> {
   })
 }
 
+/* ---------------- 기초지수 30년 평균 ---------------- */
+
+/**
+ * 자산군별 기초지수. 가격지수(^)는 배당이 빠져 있어 평균 배당수익률(%)을 더합니다.
+ * ETF(DVY·TLT 등)는 수정주가(배당 재투자 포함)로 계산합니다.
+ */
+const BENCHMARKS: Record<string, { symbol: string; label: string; addDiv: number }> = {
+  usLarge: { symbol: '^GSPC', label: 'S&P500', addDiv: 1.8 },
+  usTech: { symbol: '^NDX', label: '나스닥100', addDiv: 0.8 },
+  semis: { symbol: '^SOX', label: '필라델피아 반도체', addDiv: 0.8 },
+  usDividend: { symbol: 'DVY', label: '미국 배당주', addDiv: 0 },
+  kospi: { symbol: '^KS11', label: '코스피', addDiv: 1.7 },
+  krDividend: { symbol: '^KS11', label: '코스피', addDiv: 1.7 },
+  krSector: { symbol: '^KS11', label: '코스피', addDiv: 1.7 },
+  kosdaq: { symbol: '^KQ11', label: '코스닥', addDiv: 0.5 },
+  world: { symbol: 'ACWI', label: '전세계 주식(ACWI)', addDiv: 0 },
+  equity: { symbol: 'ACWI', label: '전세계 주식(ACWI)', addDiv: 0 },
+  intl: { symbol: 'EEM', label: '신흥국 주식(EEM)', addDiv: 0 },
+  bondLong: { symbol: 'TLT', label: '미국 장기채(TLT)', addDiv: 0 },
+  bond: { symbol: 'IEF', label: '미국 중기채(IEF)', addDiv: 0 },
+  gold: { symbol: 'GC=F', label: '금 선물', addDiv: 0 },
+  reits: { symbol: 'VNQ', label: '미국 리츠(VNQ)', addDiv: 0 },
+}
+
+export interface BenchmarkResult {
+  label: string
+  symbol: string
+  /** 연평균 수익률 (%, 배당 포함) */
+  rate: number
+  years: number
+}
+
+export function getBenchmarks(): Promise<Record<string, BenchmarkResult>> {
+  return cached('benchmarks', 24 * 3600_000, async () => {
+    const bySymbol = new Map<string, { cagr: number; years: number } | null>()
+    const symbols = [...new Set(Object.values(BENCHMARKS).map((b) => b.symbol))]
+    await Promise.all(
+      symbols.map(async (s) => {
+        const h = await yahooHistory(s).catch(() => null)
+        const r = h?.totalCagr ?? h?.priceCagr
+        bySymbol.set(s, h && r != null ? { cagr: r * 100, years: h.years } : null)
+      }),
+    )
+    const out: Record<string, BenchmarkResult> = {}
+    for (const [cls, b] of Object.entries(BENCHMARKS)) {
+      const h = bySymbol.get(b.symbol)
+      if (!h) continue
+      out[cls] = { label: b.label, symbol: b.symbol, rate: Math.round((h.cagr + b.addDiv) * 100) / 100, years: h.years }
+    }
+    return out
+  })
+}
+
 export function searchEtf(query: string): Promise<SearchItem[]> {
   const q = query.trim()
   if (!q) return Promise.resolve([])
@@ -223,6 +276,9 @@ export async function handleApi(url: URL): Promise<{ status: number; body: unkno
     }
     if (url.pathname.endsWith('/search')) {
       return { status: 200, body: await searchEtf(url.searchParams.get('q') ?? '') }
+    }
+    if (url.pathname.endsWith('/benchmarks')) {
+      return { status: 200, body: await getBenchmarks() }
     }
     if (url.pathname.endsWith('/etfs')) {
       return { status: 200, body: await krEtfList() }

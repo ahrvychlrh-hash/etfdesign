@@ -3,14 +3,26 @@ import type { Holding } from './types'
 /**
  * 기대 수익률 산출
  *
- * 1) ETF 이름으로 자산군을 나누고, 자산군별 "30년 장기 평균" 연수익률(배당 재투자 포함)을 기준값으로 둡니다.
- * 2) ETF의 실제 성과(최근 최대 30년)를 기간 비율만큼만 반영합니다.
- *    - 30년 이상 데이터: 실제 30년 평균을 그대로 사용
- *    - 5년 데이터: 실제 성과 5/30 + 장기 평균 25/30
- * 3) 짧은 기간에 급등·급락한 ETF가 결과를 끌고 가지 않도록, 30년 미만 데이터는
- *    장기 평균 ±4%p 범위로 잘라서 반영합니다.
- * 4) 재투자 OFF면 최근 12개월 배당수익률만큼 빼서 "가격 상승분"만 남깁니다.
+ * 1) ETF 이름으로 자산군을 나눕니다. (예: TIME 코스닥액티브 → 코스닥)
+ * 2) ETF가 30년 이상 상장돼 있으면 그 ETF의 실제 30년 연평균 수익률을 씁니다.
+ * 3) 그보다 짧으면 ETF 자체 성과 대신 기초지수의 장기(최대 30년) 연평균 수익률을 씁니다.
+ *    (예: 코스닥 액티브 ETF → 코스닥 지수 평균) — 짧은 기간의 급등·급락이 반영되지 않게.
+ * 4) 기초지수 데이터를 못 받으면 자산군별 고정 장기 평균값(anchor)을 씁니다.
+ * 5) 재투자 OFF면 최근 12개월 배당수익률만큼 빼서 "가격 상승분"만 남깁니다.
  */
+
+/** 서버에서 받은 기초지수 장기 평균 (자산군 → 값) */
+export interface Benchmark {
+  label: string
+  symbol: string
+  rate: number
+  years: number
+}
+let benchmarks: Record<string, Benchmark> = {}
+
+export function setBenchmarks(b: Record<string, Benchmark>) {
+  benchmarks = b
+}
 
 interface AssetClass {
   label: string
@@ -84,24 +96,43 @@ export interface ExpectedBreakdown {
   /** 가격 상승분만 (%) */
   priceOnly: number
   assetClass: AssetClassId
-  anchor: number
-  /** 실제 성과 연평균 (%) — 데이터 없으면 null */
-  actual: number | null
-  years: number
-  /** 실제 성과 반영 비율 (0~1) */
-  weight: number
+  /** 무엇을 근거로 했는지 */
+  source: 'etf' | 'index' | 'anchor'
+  /** 근거가 된 수익률(%)과 기간 */
+  basisRate: number
+  basisYears: number
+  /** 기초지수 이름 (source가 index일 때) */
+  indexLabel?: string
+  /** ETF 자체 상장 기간(년) */
+  etfYears: number
   divYield: number
 }
 
-export function expectedBreakdown(h: Pick<Holding, 'name' | 'symbol' | 'currentPrice' | 'stats'>, reinvest: boolean): ExpectedBreakdown {
+export function expectedBreakdown(
+  h: Pick<Holding, 'name' | 'symbol' | 'currentPrice' | 'stats'>,
+  reinvest: boolean,
+): ExpectedBreakdown {
   const assetClass = assetClassOf(h.name, h.symbol)
-  const anchor = ASSET_CLASSES[assetClass].anchor
   const s = h.stats
-  const actual = s?.totalCagr != null && s.years >= 1 ? s.totalCagr * 100 : null
-  const years = s?.years ?? 0
-  const weight = actual == null ? 0 : Math.min(years, 30) / 30
-  const adjusted = actual == null ? anchor : years >= 29.5 ? actual : clamp(actual, anchor - 4, anchor + 4)
-  const total = clamp(weight * adjusted + (1 - weight) * anchor, -10, 15)
+  const etfYears = s?.years ?? 0
+  const bench = benchmarks[assetClass]
+  let source: ExpectedBreakdown['source']
+  let basisRate: number
+  let basisYears: number
+  if (s?.totalCagr != null && etfYears >= 29.5) {
+    source = 'etf'
+    basisRate = s.totalCagr * 100
+    basisYears = etfYears
+  } else if (bench) {
+    source = 'index'
+    basisRate = bench.rate
+    basisYears = bench.years
+  } else {
+    source = 'anchor'
+    basisRate = ASSET_CLASSES[assetClass].anchor
+    basisYears = 30
+  }
+  const total = clamp(basisRate, -10, 15)
   const divYield = s && h.currentPrice > 0 ? (s.divPerShare / h.currentPrice) * 100 : 0
   const priceOnly = total - divYield
   return {
@@ -109,10 +140,11 @@ export function expectedBreakdown(h: Pick<Holding, 'name' | 'symbol' | 'currentP
     total,
     priceOnly,
     assetClass,
-    anchor,
-    actual,
-    years,
-    weight,
+    source,
+    basisRate,
+    basisYears,
+    indexLabel: bench?.label,
+    etfYears,
     divYield,
   }
 }

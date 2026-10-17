@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Account, AppState, Holding, Profile } from './lib/types'
 import { clearState, emptyState, loadState, saveState } from './lib/storage'
-import { fetchQuote } from './lib/api'
+import { fetchQuote, loadBenchmarks } from './lib/api'
+import { setBenchmarks } from './lib/expected'
 import { computePlan, DEFAULT_RATE } from './lib/plan'
 import { Onboarding } from './components/Onboarding'
 import { Home } from './components/Home'
 import { Holdings } from './components/Holdings'
 import { Goal } from './components/Goal'
+import { Rebalance } from './components/Rebalance'
 import { HoldingSheet } from './components/HoldingSheet'
 import { AccountSheet } from './components/AccountSheet'
 import { TabBar, type Tab } from './components/ui'
@@ -50,6 +52,17 @@ export default function App() {
       }),
     }))
     setRefreshing(false)
+  }, [])
+
+  // 기초지수 장기 평균을 받아오면 기대 수익률을 다시 계산
+  const [, setBenchVersion] = useState(0)
+  useEffect(() => {
+    loadBenchmarks()
+      .then((b) => {
+        setBenchmarks(b)
+        setBenchVersion((v) => v + 1)
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -122,11 +135,20 @@ export default function App() {
               onManageAccounts={() => setAccountsOpen(true)}
             />
           )}
+          {tab === 'rebalance' && (
+            <Rebalance
+              holdings={holdings}
+              targets={state.targets}
+              monthly={profile.monthly}
+              onTargets={(targets) => setState((s) => ({ ...s, targets }))}
+            />
+          )}
           {tab === 'goal' && (
             <Goal
               profile={profile}
               plan={plan}
               onEdit={() => setEditingProfile(true)}
+              onCharacter={(character) => updateProfile({ character })}
               onReset={() => {
                 clearState()
                 setState(emptyState())

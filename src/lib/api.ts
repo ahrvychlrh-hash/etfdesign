@@ -82,3 +82,24 @@ export function loadKrEtfs(): Promise<KrEtfRow[]> {
   krPromise.catch(() => (krPromise = null))
   return krPromise
 }
+
+/** 자산군별 기초지수 장기 평균 — 하루 동안 브라우저에 캐시 */
+const BENCH_KEY = 'etf-planner/benchmarks-v1'
+export async function loadBenchmarks(): Promise<Record<string, import('./expected').Benchmark>> {
+  try {
+    const raw = localStorage.getItem(BENCH_KEY)
+    if (raw) {
+      const { at, data } = JSON.parse(raw)
+      if (Date.now() - at < 86_400_000 && Object.keys(data).length) return data
+    }
+  } catch {
+    // 캐시를 못 읽으면 새로 받음
+  }
+  const data = await get<Record<string, import('./expected').Benchmark>>('/api/benchmarks')
+  try {
+    localStorage.setItem(BENCH_KEY, JSON.stringify({ at: Date.now(), data }))
+  } catch {
+    // noop
+  }
+  return data
+}

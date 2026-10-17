@@ -4,7 +4,7 @@ const KEY = 'etf-planner/v1'
 
 export const DEFAULT_ACCOUNT: Account = { id: 'default', name: '기본 계좌', kind: '일반' }
 
-const empty: AppState = { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [] }
+const empty: AppState = { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [], targets: {} }
 
 type OldHolding = Holding & { ticker?: string; avgPrice?: number; stats?: EtfStats & { divYield?: number } }
 
@@ -26,10 +26,11 @@ function migrateHolding(h: OldHolding, accountIds: Set<string>): Holding {
   }
 }
 
-/** 예전 버전의 현금·기본 수익률·캐릭터 선택 값은 더 이상 쓰지 않음 */
+/** 예전 버전의 현금·기본 수익률 값은 버리고, 없는 캐릭터는 몽실이로 */
 function migrateProfile(p: Profile | null | undefined): Profile | null {
   if (!p) return null
-  return { age: p.age, target: p.target, monthly: p.monthly, reinvest: p.reinvest ?? true, createdAt: p.createdAt }
+  const character = (['sheep', 'cow', 'duck'] as const).find((c) => c === p.character) ?? 'sheep'
+  return { age: p.age, target: p.target, monthly: p.monthly, reinvest: p.reinvest ?? true, character, createdAt: p.createdAt }
 }
 
 export function loadState(): AppState {
@@ -43,6 +44,7 @@ export function loadState(): AppState {
       profile: migrateProfile(parsed.profile),
       accounts,
       holdings: ((parsed.holdings ?? []) as OldHolding[]).map((h) => migrateHolding(h, ids)),
+      targets: parsed.targets ?? {},
     }
   } catch {
     return empty
@@ -66,5 +68,5 @@ export function clearState() {
 }
 
 export function emptyState(): AppState {
-  return { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [] }
+  return { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [], targets: {} }
 }

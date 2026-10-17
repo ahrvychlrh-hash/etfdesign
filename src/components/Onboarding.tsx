@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { Profile } from '../lib/types'
-import { MASCOT_NAME } from '../lib/characters'
-import { Mascot } from './Mascot'
+import { character, withWa, type CharacterId } from '../lib/characters'
+import { CharacterPicker, Mascot } from './Mascot'
 import { MoneyInput } from './MoneyInput'
 import { monthsToTarget } from '../lib/finance'
 import { duration, wonShort } from '../lib/format'
@@ -34,13 +34,15 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
   const [age, setAge] = useState(initial?.age ?? 0)
   const [target, setTarget] = useState(initial?.target ?? 0)
   const [monthly, setMonthly] = useState(initial?.monthly ?? 0)
+  const [char, setChar] = useState<CharacterId>(initial?.character ?? 'sheep')
+  const me = character(char)
 
   const valid = [age > 0 && age < 120, target > 0, monthly >= 0, true][step]
   const isLast = step === STEPS.length - 1
   const months = monthsToTarget(currentTotal, monthly, rate, target)
 
   const bubble = [
-    `안녕하세요! 저는 ${MASCOT_NAME}예요.\n먼저 나이를 알려주세요`,
+    `안녕하세요! 저는 ${me.name}예요.\n먼저 나이를 알려주세요`,
     '얼마를 모으는 게\n목표예요?',
     '매달 얼마씩\n투자할 수 있어요?',
     initial ? '목표를 다시 정리해 볼까요?' : '좋아요!\n이제 같이 모아 봐요',
@@ -55,6 +57,7 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
       target,
       monthly,
       reinvest: initial?.reinvest ?? true,
+      character: char,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
     })
   }
@@ -92,7 +95,7 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
             <p className="bubble bubble--onb" key={bubble}>
               {bubble}
             </p>
-            <Mascot className="mascot--onb" />
+            <Mascot id={char} className="mascot--onb" />
           </div>
         </div>
 
@@ -129,6 +132,8 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
           )}
           {step === 3 && (
             <>
+              <p className="q">함께할 친구</p>
+              <CharacterPicker value={char} onChange={setChar} />
               <dl className="summary">
                 <SummaryRow label="나이" value={`${age}세`} onEdit={() => setStep(0)} />
                 <SummaryRow label="목표 금액" value={wonShort(target)} onEdit={() => setStep(1)} />
@@ -152,7 +157,7 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
             </>
           )}
           <button type="submit" className="btn btn--primary btn--xl" disabled={!valid}>
-            {isLast ? (initial ? '저장하기' : `${MASCOT_NAME}와 시작하기`) : '다음'}
+            {isLast ? (initial ? '저장하기' : `${withWa(me.name)} 시작하기`) : '다음'}
           </button>
         </div>
       </form>

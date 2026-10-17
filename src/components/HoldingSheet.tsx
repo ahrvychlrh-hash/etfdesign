@@ -370,21 +370,24 @@ function ExpectedCard({ exp, reinvest }: { exp: ReturnType<typeof expectedBreakd
         <span>기대 연수익률 {reinvest ? '(배당 재투자)' : '(가격 상승분만)'}</span>
         <b>{exp.rate.toFixed(1)}%</b>
       </div>
-      <div className="exp__bar" aria-hidden>
-        <span style={{ width: `${exp.weight * 100}%` }} />
-      </div>
       <p className="exp__why">
-        {ASSET_CLASSES[exp.assetClass].label} 30년 평균 <b>{exp.anchor}%</b>
-        {exp.actual == null ? (
-          <> 기준 (과거 데이터 없음)</>
-        ) : (
+        {exp.source === 'etf' && (
           <>
-            {' '}
-            × {Math.round((1 - exp.weight) * 100)}% + 이 ETF 실제 {exp.years}년 평균 <b>{exp.actual.toFixed(1)}%</b> ×{' '}
-            {Math.round(exp.weight * 100)}%
-            {exp.years < 29.5 && Math.abs(exp.actual - exp.anchor) > 4 && <> (급등락 보정: ±4%p 이내로 반영)</>}
+            이 ETF의 실제 {exp.basisYears}년 연평균 <b>{exp.basisRate.toFixed(1)}%</b>
           </>
         )}
+        {exp.source === 'index' && (
+          <>
+            {exp.etfYears > 0 ? `상장 ${exp.etfYears}년이라 ` : '신규 상장이라 '}기초지수 <b>{exp.indexLabel}</b>의{' '}
+            {Math.round(exp.basisYears)}년 연평균 <b>{exp.basisRate.toFixed(1)}%</b> 적용
+          </>
+        )}
+        {exp.source === 'anchor' && (
+          <>
+            {ASSET_CLASSES[exp.assetClass].label} 장기 평균 <b>{exp.basisRate}%</b> 적용 (기초지수 데이터 없음)
+          </>
+        )}
+        {exp.total !== exp.basisRate && <> → 최대 15%로 제한</>}
         {!reinvest && exp.divYield > 0 && <> − 배당수익률 {exp.divYield.toFixed(1)}%</>}
       </p>
     </div>

@@ -1,7 +1,7 @@
 import type { Profile } from '../lib/types'
 import type { Plan } from '../lib/plan'
-import { ICONS } from '../lib/characters'
-import { Mascot } from './Mascot'
+import { ICONS, type CharacterId } from '../lib/characters'
+import { CharacterPicker, Mascot } from './Mascot'
 import { duration, wonShort } from '../lib/format'
 import { ConfirmButton } from './ui'
 
@@ -9,10 +9,11 @@ interface Props {
   profile: Profile
   plan: Plan
   onEdit: () => void
+  onCharacter: (id: CharacterId) => void
   onReset: () => void
 }
 
-export function Goal({ profile, plan, onEdit, onReset }: Props) {
+export function Goal({ profile, plan, onEdit, onCharacter, onReset }: Props) {
   return (
     <>
       <header className="hero hero--goal">
@@ -22,7 +23,7 @@ export function Goal({ profile, plan, onEdit, onReset }: Props) {
             수정하기
           </button>
         </div>
-        <Mascot className="mascot--goal" />
+        <Mascot id={profile.character} className="mascot--goal" />
         <h1 className="hero__title hero__title--center">
           <b>{wonShort(profile.target)}</b> 모으기
         </h1>
@@ -45,6 +46,15 @@ export function Goal({ profile, plan, onEdit, onReset }: Props) {
           value={`연 ${plan.rate.toFixed(1)}%`}
         />
       </div>
+
+      <section className="section">
+        <div className="section__head">
+          <h2>함께하는 친구</h2>
+        </div>
+        <div className="card">
+          <CharacterPicker value={profile.character} onChange={onCharacter} />
+        </div>
+      </section>
 
       <section className="section">
         <div className="card card--plain">

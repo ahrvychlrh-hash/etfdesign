@@ -1,6 +1,6 @@
 # ETF 모아
 
-3D 캐릭터 콤코미(양 + 소파)와 함께 ETF로 목표 자산을 모으는 개인용 웹 앱.
+3D 캐릭터(양 몽실이·소 음메·오리 덕구 중 선택)와 함께 ETF로 목표 자산을 모으는 개인용 웹 앱.
 
 ## 기능
 
@@ -14,10 +14,12 @@
   - 평가금은 현재가 × 주식수로 자동 계산, 직접 입력도 가능
   - 국내 상장 ETF 전체(네이버 금융 목록) + 해외 ETF 검색
   - 계좌별(일반·ISA·연금저축·IRP 등)로 묶어서 관리
-  - ETF별 기대 수익률 = 자산군 30년 장기 평균 + 실제 성과를 상장 기간 비율만큼 반영(30년 미만은 ±4%p 이내), 포트폴리오는 비중 가중평균
+  - ETF별 기대 수익률 = 30년 이상 된 ETF는 자체 30년 평균, 그보다 짧으면 기초지수(코스닥·S&P500 등) 장기 평균. 포트폴리오는 비중 가중평균
   - 보유 수량 기준 연·월 배당금(세전/세후), 월별 지급 일정
   - **배당 재투자 ON/OFF**: ON이면 배당 재투자 총수익률, OFF면 가격 상승분만 예측에 반영
-- **내 목표**: 목표 수정, 데이터 초기화
+- **리밸런싱**: ETF별 목표 비중 설정 → 매수·매도 금액과 주식 수 계산(추가 매수로만 맞추기 옵션), 현재/목표 비중 표
+- **비중 분석**: 자산군·나라별·섹터별 비중과 높음/적정/낮음 판정 (기초지수 대표 구성 기준 추정)
+- **내 목표**: 목표 수정, 캐릭터 변경, 데이터 초기화
 
 ## 실행
 
@@ -28,7 +30,7 @@ npm run dev
 
 ## 배포 (Vercel 권장)
 
-국내 시세·ETF 목록은 네이버 금융, 과거 성과·배당·해외 시세는 Yahoo Finance에서 가져오며, 브라우저 CORS 제한 때문에 서버 함수(`api/quote.ts`, `api/search.ts`, `api/etfs.ts`)를 거칩니다.
+국내 시세·ETF 목록은 네이버 금융, 과거 성과·배당·해외 시세는 Yahoo Finance에서 가져오며, 브라우저 CORS 제한 때문에 서버 함수(`api/quote.ts`, `api/search.ts`, `api/etfs.ts`, `api/benchmarks.ts`)를 거칩니다.
 Vercel에 그대로 올리면 `/api/*` 함수가 자동으로 배포됩니다. 개발 중에는 Vite 서버가 같은 API를 대신 처리합니다(`vite.config.ts`).
 
 ## 구조
@@ -40,4 +42,4 @@ Vercel에 그대로 올리면 `/api/*` 함수가 자동으로 배포됩니다. �
 - `src/lib/presets.ts`: 한글 검색용 대표 ETF 목록
 - `server/yahoo.ts`: 시세·수익률·배당 조회 (dev 서버와 Vercel 함수 공용)
 
-3D 캐릭터 콤코미는 Three.js로 직접 모델링(`src/components/Mascot3D.tsx`). 아이콘: [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (MIT)
+3D 캐릭터 3종은 Three.js로 직접 모델링(`src/components/Mascot3D.tsx`). 아이콘: [Microsoft Fluent Emoji](https://github.com/microsoft/fluentui-emoji) (MIT)
