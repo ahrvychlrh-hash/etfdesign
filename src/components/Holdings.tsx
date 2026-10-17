@@ -1,4 +1,4 @@
-import type { Account, Holding, Profile, RealEstate, Reinvest } from '../lib/types'
+import { isReserve, type Account, type Holding, type Profile, type RealEstate, type Reinvest } from '../lib/types'
 import { RealEstateSection } from './RealEstateSection'
 import { realPrincipal, reinvestTotal } from '../lib/history'
 import type { Plan } from '../lib/plan'
@@ -30,6 +30,8 @@ interface Props {
   onReinvest: (v: boolean) => void
   onManageAccounts: () => void
   reinvests: Reinvest[]
+  /** 비상금 계좌를 뺀 투자 자산 */
+  investHoldings: Holding[]
   realEstates: RealEstate[]
   onSaveRealEstate: (r: RealEstate) => void
   onDeleteRealEstate: (id: string) => void
@@ -41,7 +43,7 @@ export function Holdings(props: Props) {
   const { etf } = plan
   // 재투자한 돈은 내 원금이 아니므로 빼고 실제 수익을 계산
   const reinvested = reinvestTotal(props.reinvests)
-  const principal = realPrincipal(holdings, props.reinvests)
+  const principal = realPrincipal(props.investHoldings, props.reinvests)
   const realGain = etf.value - principal
 
   return (
@@ -55,7 +57,7 @@ export function Holdings(props: Props) {
             </button>
           )}
         </div>
-        <p className="hero__hello">총 평가금</p>
+        <p className="hero__hello">{plan.reserve > 0 ? '투자 평가금 (비상금 제외)' : '총 평가금'}</p>
         <h1 className="hero__title">
           <b>{won(etf.value)}</b>
         </h1>
@@ -75,6 +77,7 @@ export function Holdings(props: Props) {
             </span>
           </p>
         )}
+        {plan.reserve > 0 && <p className="hero__meta">비상금 {wonShort(plan.reserve)}은 총자산에만 더하고 수익률에서는 뺐어요</p>}
         <img className="hero__corner" src={ICONS.chart} alt="" />
       </header>
 
@@ -91,7 +94,7 @@ export function Holdings(props: Props) {
         <Toggle on={profile.reinvest} onChange={onReinvest} label="배당금 재투자" />
       </div>
 
-      {etf.value > 0 && <AccountShare accounts={accounts} holdings={holdings} total={etf.value} />}
+      <AccountShare accounts={accounts} holdings={holdings} />
 
       {holdings.length > 0 && <Dividends holdings={holdings} colors={colors} />}
 
@@ -114,7 +117,12 @@ export function Holdings(props: Props) {
                   <img src={ICONS.briefcase} alt="" className="icon3d icon3d--xs" />
                   <span className="list__main">
                     <b>
-                      {acc.name} {acc.kind !== '일반' && <span className="tag tag--blue tag--xs">{acc.kind}</span>}
+                      {acc.name}{' '}
+                      {isReserve(acc) ? (
+                        <span className="tag tag--warn tag--xs">비상금 · 수익률 제외</span>
+                      ) : (
+                        acc.kind !== '일반' && <span className="tag tag--blue tag--xs">{acc.kind}</span>
+                      )}
                     </b>
                     <span className="muted">
                       {list.length}개 · 평가 {wonShort(sum.value)}
@@ -127,8 +135,25 @@ export function Holdings(props: Props) {
                     </span>
                   </span>
                 </div>
+                {isReserve(acc) && (
+                  <button className="card card--btn cash-row" onClick={onManageAccounts}>
+                    <img src={ICONS.banknote} alt="" className="icon3d icon3d--xs" />
+                    <span className="list__main">
+                      <b>현금</b>
+                      <span className="muted">계좌 관리에서 잔액을 바꿀 수 있어요</span>
+                    </span>
+                    <b>{won(acc.cash ?? 0)}</b>
+                  </button>
+                )}
                 {list.map((h) => (
-                  <HoldingCard key={h.id} h={h} color={colors.get(h.id)} reinvest={profile.reinvest} total={etf.value} onEdit={onEdit} />
+                  <HoldingCard
+                    key={h.id}
+                    h={h}
+                    color={colors.get(h.id)}
+                    reinvest={profile.reinvest}
+                    total={isReserve(acc) ? 0 : etf.value}
+                    onEdit={onEdit}
+                  />
                 ))}
                 <button className="account__add" onClick={() => onAdd(acc.id)}>
                   + 이 계좌에 ETF 추가
@@ -186,7 +211,11 @@ function HoldingCard({
       <div className="tags">
         <span className="tag tag--blue">기대 연 {expectedReturn(h, reinvest).toFixed(1)}%</span>
         <span className="tag">배당 {div > 0 ? `연 ${wonShort(div)}` : '없음'}</span>
-        <span className="tag">비중 {total ? ((v / total) * 100).toFixed(0) : 0}%</span>
+        {total ? (
+          <span className="tag">비중 {((v / total) * 100).toFixed(0)}%</span>
+        ) : (
+          <span className="tag tag--warn">비상금 · 수익률 제외</span>
+        )}
         {h.priceMode === 'manual' && <span className="tag tag--warn">평가금 직접입력</span>}
       </div>
     </button>
@@ -265,12 +294,15 @@ function payLabel(months: number[]) {
 /** 계좌별 색 — 계좌 순서로 고정 */
 const ACCOUNT_COLORS = ['#3d5afe', '#ff7a45', '#1baf7a', '#f5a400', '#7b5cff', '#e87ba4', '#008300', '#e34948']
 
-function AccountShare({ accounts, holdings, total }: { accounts: Account[]; holdings: Holding[]; total: number }) {
+function AccountShare({ accounts, holdings }: { accounts: Account[]; holdings: Holding[] }) {
+  // 계좌별 = 보유 ETF 평가금 + 현금(비상금 계좌)
+  const values = accounts.map(
+    (a) => holdings.filter((h) => h.accountId === a.id).reduce((s, h) => s + holdingValue(h), 0) + (a.cash ?? 0),
+  )
+  const total = values.reduce((s, v) => s + v, 0)
+  if (total <= 0) return null
   const rows = accounts
-    .map((a, i) => {
-      const value = holdings.filter((h) => h.accountId === a.id).reduce((s, h) => s + holdingValue(h), 0)
-      return { ...a, value, pct: (value / total) * 100, color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length] }
-    })
+    .map((a, i) => ({ ...a, value: values[i], pct: (values[i] / total) * 100, color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length] }))
     .filter((r) => r.value > 0)
 
   return (

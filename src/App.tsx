@@ -3,7 +3,7 @@ import type { Account, AppState, Holding, Profile } from './lib/types'
 import { clearState, emptyState, loadState, saveState } from './lib/storage'
 import { fetchQuote, loadBenchmarks } from './lib/api'
 import { setBenchmarks } from './lib/expected'
-import { computePlan, DEFAULT_RATE } from './lib/plan'
+import { computePlan, DEFAULT_RATE, splitReserve } from './lib/plan'
 import { holdingValue } from './lib/finance'
 import { monthKey, realPrincipal } from './lib/history'
 import { Onboarding } from './components/Onboarding'
@@ -35,9 +35,11 @@ export default function App() {
   // 이번 달 자산을 기록 — 그 달에 마지막으로 기록된 값이 월말 자산이 됨
   useEffect(() => {
     if (!state.profile) return
-    const value = state.holdings.reduce((s, h) => s + holdingValue(h), 0)
+    // 비상금 계좌는 수익률 기록에서 뺌
+    const { investHoldings } = splitReserve(state.holdings, state.accounts)
+    const value = investHoldings.reduce((s, h) => s + holdingValue(h), 0)
     if (value <= 0) return
-    const principal = realPrincipal(state.holdings, state.reinvests)
+    const principal = realPrincipal(investHoldings, state.reinvests)
     const key = monthKey()
     const prev = state.snapshots[key]
     if (prev?.manual) return
@@ -46,7 +48,7 @@ export default function App() {
       ...s,
       snapshots: { ...s.snapshots, [key]: { value, principal, at: new Date().toISOString() } },
     }))
-  }, [state.profile, state.holdings, state.reinvests, state.snapshots])
+  }, [state.profile, state.holdings, state.accounts, state.reinvests, state.snapshots])
 
   /** 현재가·과거 성과·배당을 다시 불러옵니다. */
   const refresh = useCallback(async (force: boolean) => {
@@ -92,12 +94,13 @@ export default function App() {
     setState((s) => ({ ...s, profile: s.profile && { ...s.profile, ...patch } }))
 
   if (!state.profile || editingProfile) {
-    const preview = state.profile ? computePlan(state.profile, state.holdings, state.realEstates) : null
+    const ps = splitReserve(state.holdings, state.accounts)
+    const preview = state.profile ? computePlan(state.profile, ps.investHoldings, state.realEstates, ps.reserveTotal) : null
     return (
       <Onboarding
         initial={state.profile}
         currentTotal={preview?.etf.value ?? 0}
-        fixedAssets={preview?.realEstate ?? 0}
+        fixedAssets={preview?.fixed ?? 0}
         rate={preview?.rate ?? DEFAULT_RATE}
         rateFromEtf={preview?.etfRate != null}
         onCancel={state.profile ? () => setEditingProfile(false) : undefined}
@@ -110,7 +113,10 @@ export default function App() {
   }
 
   const { profile, holdings, accounts } = state
-  const plan = computePlan(profile, holdings, state.realEstates)
+  // 비상금 계좌(ETF·현금)는 총자산에만 넣고 투자 계산에서는 뺌
+  const split = splitReserve(holdings, accounts)
+  const investHoldings = split.investHoldings
+  const plan = computePlan(profile, investHoldings, state.realEstates, split.reserveTotal)
   const reinvest = (v: boolean) => updateProfile({ reinvest: v })
   const counts = new Map<string, number>()
   holdings.forEach((h) => counts.set(h.accountId, (counts.get(h.accountId) ?? 0) + 1))
@@ -134,7 +140,7 @@ export default function App() {
           {tab === 'home' && (
             <Home
               profile={profile}
-              holdings={holdings}
+              holdings={investHoldings}
               plan={plan}
               onTab={setTab}
               onAdd={() => setSheet({})}
@@ -154,6 +160,7 @@ export default function App() {
               onReinvest={reinvest}
               onManageAccounts={() => setAccountsOpen(true)}
               reinvests={state.reinvests}
+              investHoldings={investHoldings}
               realEstates={state.realEstates}
               onSaveRealEstate={(r) =>
                 setState((s) => ({
@@ -168,7 +175,7 @@ export default function App() {
           )}
           {tab === 'history' && (
             <History
-              holdings={holdings}
+              holdings={investHoldings}
               snapshots={state.snapshots}
               reinvests={state.reinvests}
               onSnapshot={(month, snap) =>
@@ -185,7 +192,7 @@ export default function App() {
           )}
           {tab === 'rebalance' && (
             <Rebalance
-              holdings={holdings}
+              holdings={investHoldings}
               targets={state.targets}
               onTargets={(targets) => setState((s) => ({ ...s, targets }))}
             />

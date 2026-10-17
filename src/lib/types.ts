@@ -27,13 +27,20 @@ export interface EtfStats {
   updatedAt: string
 }
 
-export const ACCOUNT_KINDS = ['일반', 'ISA', '연금저축', 'IRP', '해외주식', '금통장'] as const
+export const ACCOUNT_KINDS = ['일반', 'ISA', '연금저축', 'IRP', '해외주식', '금통장', '비상금'] as const
 export type AccountKind = (typeof ACCOUNT_KINDS)[number]
 
 export interface Account {
   id: string
   name: string
   kind: AccountKind
+  /** 현금 잔액 (원) — 비상금 계좌에서 사용 */
+  cash?: number
+}
+
+/** 비상금 계좌: 총자산에는 넣고 수익률·기록·리밸런싱에서는 뺌 */
+export function isReserve(a: Pick<Account, 'kind'>) {
+  return a.kind === '비상금'
 }
 
 export interface Holding {

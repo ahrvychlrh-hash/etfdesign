@@ -2511,3 +2511,29 @@ b {
   font-size: 13px;
   line-height: 1.6;
 }
+
+/* ---------- 비상금 계좌 ---------- */
+.acc__cash {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+.acc__cash .field--lg {
+  height: 48px;
+  background: #fff;
+}
+.acc__cash .field--lg input {
+  font-size: 18px;
+}
+.cash-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+.cash-row > b {
+  font-size: 15px;
+  white-space: nowrap;
+}

@@ -26,15 +26,15 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
     () =>
       project(plan.etf.value, profile.monthly, plan.rate, profile.age, years).map((p) => ({
         ...p,
-        value: p.value + plan.realEstate,
-        contributed: p.contributed + plan.realEstate,
+        value: p.value + plan.fixed,
+        contributed: p.contributed + plan.fixed,
       })),
-    [plan.etf.value, plan.realEstate, profile.monthly, plan.rate, profile.age, years],
+    [plan.etf.value, plan.fixed, profile.monthly, plan.rate, profile.age, years],
   )
   const by60 = requiredMonthly(
     plan.etf.value,
     plan.rate,
-    profile.target - plan.realEstate,
+    profile.target - plan.fixed,
     Math.max((60 - profile.age) * 12, 1),
   )
   // 6시간마다 바뀌는 장기 투자 명언
@@ -55,9 +55,11 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
         <h1 className="hero__title">
           총 자산 <b>{wonShort(plan.total)}</b>
         </h1>
-        {plan.realEstate > 0 && (
+        {plan.fixed > 0 && (
           <p className="hero__meta">
-            투자 자산 {wonShort(plan.etf.value)} · 부동산 {wonShort(plan.realEstate)}
+            투자 자산 {wonShort(plan.etf.value)}
+            {plan.reserve > 0 && <> · 비상금 {wonShort(plan.reserve)}</>}
+            {plan.realEstate > 0 && <> · 부동산 {wonShort(plan.realEstate)}</>}
           </p>
         )}
         <div className="hero__progress">

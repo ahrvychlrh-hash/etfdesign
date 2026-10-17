@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ACCOUNT_KINDS, type Account, type AccountKind } from '../lib/types'
+import { ACCOUNT_KINDS, isReserve, type Account, type AccountKind } from '../lib/types'
+import { MoneyInput } from './MoneyInput'
 import { ConfirmButton } from './ui'
 
 interface Props {
@@ -41,7 +42,10 @@ export function AccountSheet({ accounts, counts, onChange, onDelete, onClose }: 
             ✕
           </button>
         </div>
-        <p className="hint hint--top">증권사·계좌별로 ETF를 묶어서 볼 수 있어요. (예: 키움 ISA, 미래에셋 연금저축)</p>
+        <p className="hint hint--top">
+          증권사·계좌별로 ETF를 묶어서 볼 수 있어요. (예: 키움 ISA, 미래에셋 연금저축) 종류를 '비상금'으로 하면 현금도 넣을 수 있고,
+          총자산에만 더하고 수익률에서는 빼요.
+        </p>
 
         <ul className="acc-list">
           {accounts.map((a) => (
@@ -73,6 +77,12 @@ export function AccountSheet({ accounts, counts, onChange, onDelete, onClose }: 
                   />
                 )}
               </div>
+              {isReserve(a) && (
+                <div className="acc__cash">
+                  <span className="form-item__label">현금 잔액 (비상금 · 수익률 제외)</span>
+                  <MoneyInput id={`cash-${a.id}`} value={a.cash ?? 0} onChange={(v) => patch(a.id, { cash: v })} />
+                </div>
+              )}
             </li>
           ))}
         </ul>
