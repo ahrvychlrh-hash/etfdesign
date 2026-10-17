@@ -1,4 +1,4 @@
-import { handleApi } from '../server/yahoo'
+import { handleApi } from '../server/yahoo.js'
 
 // Vercel 서버리스 함수: GET /api/quote?symbol=360750.KS
 export async function GET(request: Request) {

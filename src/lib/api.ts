@@ -103,3 +103,41 @@ export async function loadBenchmarks(): Promise<Record<string, import('./expecte
   }
   return data
 }
+
+/* ---------------- 증권 앱 캡처 읽기 ---------------- */
+
+export interface ScannedHolding {
+  name: string
+  code: string | null
+  quantity: number | null
+  invested: number | null
+  value: number | null
+  avgPrice: number | null
+  currentPrice: number | null
+  currency: 'KRW' | 'USD'
+}
+
+/** 긴 변 기준으로 줄여서 JPEG base64로 — 업로드 용량을 줄이고 인식 비용도 아낌 */
+async function shrink(file: File, maxSide = 1600): Promise<{ mediaType: string; data: string }> {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  const url = canvas.toDataURL('image/jpeg', 0.85)
+  return { mediaType: 'image/jpeg', data: url.slice(url.indexOf(',') + 1) }
+}
+
+export async function scanScreenshots(files: File[]): Promise<ScannedHolding[]> {
+  const images = await Promise.all(files.map((f) => shrink(f)))
+  const res = await fetch('/api/scan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ images }),
+  })
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`)
+  return (body as { holdings: ScannedHolding[] }).holdings
+}

@@ -14,6 +14,7 @@ import { Rebalance } from './components/Rebalance'
 import { History } from './components/History'
 import { HoldingSheet } from './components/HoldingSheet'
 import { AccountSheet } from './components/AccountSheet'
+import { ScanSheet } from './components/ScanSheet'
 import { TabBar, type Tab } from './components/ui'
 
 const STALE_MS = 10 * 60_000
@@ -26,6 +27,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [sheet, setSheet] = useState<SheetState>(null)
   const [accountsOpen, setAccountsOpen] = useState(false)
+  const [scanOpen, setScanOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const holdingsRef = useRef(state.holdings)
   holdingsRef.current = state.holdings
@@ -86,9 +88,11 @@ export default function App() {
       .catch(() => {})
   }, [])
 
+  // 처음 열 때, 그리고 캡처로 종목을 넣은 뒤 시세가 없는 종목을 불러옴
+  const [refreshTick, setRefreshTick] = useState(0)
   useEffect(() => {
     refresh(false)
-  }, [refresh])
+  }, [refresh, refreshTick])
 
   const updateProfile = (patch: Partial<Profile>) =>
     setState((s) => ({ ...s, profile: s.profile && { ...s.profile, ...patch } }))
@@ -159,6 +163,7 @@ export default function App() {
               onRefresh={() => refresh(true)}
               onReinvest={reinvest}
               onManageAccounts={() => setAccountsOpen(true)}
+              onScan={() => setScanOpen(true)}
               reinvests={state.reinvests}
               investHoldings={investHoldings}
               realEstates={state.realEstates}
@@ -187,6 +192,7 @@ export default function App() {
                 })
               }
               onAddReinvest={(r) => setState((s) => ({ ...s, reinvests: [...s.reinvests, r] }))}
+              onUpdateReinvest={(r) => setState((s) => ({ ...s, reinvests: s.reinvests.map((x) => (x.id === r.id ? r : x)) }))}
               onDeleteReinvest={(id) => setState((s) => ({ ...s, reinvests: s.reinvests.filter((r) => r.id !== id) }))}
             />
           )}
@@ -239,6 +245,21 @@ export default function App() {
                 }
               : undefined
           }
+        />
+      )}
+
+      {scanOpen && (
+        <ScanSheet
+          accounts={accounts}
+          holdings={holdings}
+          defaultAccountId={accounts[0].id}
+          onClose={() => setScanOpen(false)}
+          onApply={(updated, added) => {
+            const byId = new Map(updated.map((h) => [h.id, h]))
+            setState((s) => ({ ...s, holdings: [...s.holdings.map((h) => byId.get(h.id) ?? h), ...added] }))
+            setScanOpen(false)
+            setRefreshTick((t) => t + 1)
+          }}
         />
       )}
 

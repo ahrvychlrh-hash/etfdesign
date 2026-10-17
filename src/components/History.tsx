@@ -14,13 +14,14 @@ interface Props {
   reinvests: Reinvest[]
   onSnapshot: (month: string, snap: Snapshot | null) => void
   onAddReinvest: (r: Reinvest) => void
+  onUpdateReinvest: (r: Reinvest) => void
   onDeleteReinvest: (id: string) => void
 }
 
 const UP = '#f04452'
 const DOWN = '#3182f6'
 
-export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinvest, onDeleteReinvest }: Props) {
+export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinvest, onUpdateReinvest, onDeleteReinvest }: Props) {
   const rows = useMemo(() => monthRows(snapshots), [snapshots])
   const years = useMemo(() => yearSummaries(rows), [rows])
   const value = holdings.reduce((s, h) => s + holdingValue(h), 0)
@@ -130,7 +131,7 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
 
       <MonthTable rows={rows} onSnapshot={onSnapshot} snapshots={snapshots} />
 
-      <ReinvestSection reinvests={reinvests} onAdd={onAddReinvest} onDelete={onDeleteReinvest} />
+      <ReinvestSection reinvests={reinvests} onAdd={onAddReinvest} onUpdate={onUpdateReinvest} onDelete={onDeleteReinvest} />
     </>
   )
 }
@@ -286,26 +287,43 @@ const KIND_LABEL: Record<Reinvest['kind'], string> = { sell: '매도 후 재투�
 function ReinvestSection({
   reinvests,
   onAdd,
+  onUpdate,
   onDelete,
 }: {
   reinvests: Reinvest[]
   onAdd: (r: Reinvest) => void
+  onUpdate: (r: Reinvest) => void
   onDelete: (id: string) => void
 }) {
   const [month, setMonth] = useState(monthKey())
   const [kind, setKind] = useState<Reinvest['kind']>('dividend')
   const [amount, setAmount] = useState(0)
   const [memo, setMemo] = useState('')
+  /** 수정 중인 기록 id — 있으면 위 입력칸이 수정 폼이 됨 */
+  const [editingId, setEditingId] = useState<string | null>(null)
   const byMonth = new Map<string, Reinvest[]>()
   ;[...reinvests]
     .sort((a, b) => b.month.localeCompare(a.month))
     .forEach((r) => byMonth.set(r.month, [...(byMonth.get(r.month) ?? []), r]))
 
-  function add() {
+  function save() {
     if (amount <= 0 || !/^\d{4}-\d{2}$/.test(month)) return
-    onAdd({ id: crypto.randomUUID(), month, kind, amount, memo: memo.trim() || undefined })
+    const r = { id: editingId ?? crypto.randomUUID(), month, kind, amount, memo: memo.trim() || undefined }
+    if (editingId) onUpdate(r)
+    else onAdd(r)
+    reset()
+  }
+  function reset() {
+    setEditingId(null)
     setAmount(0)
     setMemo('')
+  }
+  function edit(r: Reinvest) {
+    setEditingId(r.id)
+    setMonth(r.month)
+    setKind(r.kind)
+    setAmount(r.amount)
+    setMemo(r.memo ?? '')
   }
 
   return (
@@ -339,9 +357,14 @@ function ReinvestSection({
             </div>
           </div>
           <MoneyInput id="reinvest-amount" value={amount} onChange={setAmount} />
-          <button className="btn btn--primary btn--block" disabled={amount <= 0} onClick={add}>
-            재투자 추가
+          <button className="btn btn--primary btn--block" disabled={amount <= 0} onClick={save}>
+            {editingId ? '수정 저장' : '재투자 추가'}
           </button>
+          {editingId && (
+            <button className="btn btn--ghost btn--block" onClick={reset}>
+              수정 취소
+            </button>
+          )}
           <p className="hint hint--sm">
             재투자한 돈은 내 원금이 아니라서 투자금에서 빼고 실제 수익률을 계산해요. 판 ETF를 목록에서 지웠다면 판 금액 중 수익
             부분만 적어야 정확해요.
@@ -357,11 +380,23 @@ function ReinvestSection({
                   <span className="muted">{won(list.reduce((s, r) => s + r.amount, 0))}</span>
                 </div>
                 {list.map((r) => (
-                  <div key={r.id} className="reinv-item">
+                  <div key={r.id} className={`reinv-item ${editingId === r.id ? 'is-editing' : ''}`}>
                     <span className={`tag tag--xs ${r.kind === 'sell' ? 'tag--warn' : 'tag--blue'}`}>{KIND_LABEL[r.kind]}</span>
                     <span className="reinv-item__memo">{r.memo ?? ''}</span>
                     <b>{won(r.amount)}</b>
-                    <ConfirmButton className="link link--danger" label="삭제" question="삭제할까요?" confirmLabel="삭제" onConfirm={() => onDelete(r.id)} />
+                    <button className="link" onClick={() => edit(r)}>
+                      수정
+                    </button>
+                    <ConfirmButton
+                      className="link link--danger"
+                      label="삭제"
+                      question="삭제할까요?"
+                      confirmLabel="삭제"
+                      onConfirm={() => {
+                        if (editingId === r.id) reset()
+                        onDelete(r.id)
+                      }}
+                    />
                   </div>
                 ))}
               </div>

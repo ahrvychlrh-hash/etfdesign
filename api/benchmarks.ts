@@ -1,4 +1,4 @@
-import { handleApi } from '../server/yahoo'
+import { handleApi } from '../server/yahoo.js'
 
 // Vercel 서버리스 함수: GET /api/benchmarks — 자산군별 기초지수 30년 평균 수익률
 export async function GET(request: Request) {

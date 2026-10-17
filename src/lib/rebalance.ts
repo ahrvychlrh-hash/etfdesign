@@ -34,6 +34,8 @@ export interface RebalanceRow extends Position {
   /** 대략적인 주식 수 */
   shares: number
   action: 'buy' | 'sell' | 'hold'
+  /** 목표와 ±TOLERANCE%p 이내라 꼭 조정하지 않아도 되는지 */
+  within: boolean
 }
 
 /**
@@ -66,10 +68,11 @@ export function rebalance(list: Position[], targets: Record<string, number>, ext
     const current = total > 0 ? (p.value / total) * 100 : 0
     const target = sumTarget > 0 ? weight(p) * 100 : 0
     const gap = target - current
-    const amount = Math.round(amounts[i])
+    // 금액은 천원 단위까지만
+    const amount = Math.round(amounts[i] / 1000) * 1000
     const shares = p.price > 0 ? Math.round(amount / p.price) : 0
-    const meaningful = Math.abs(gap) > TOLERANCE || (extra > 0 && Math.abs(amount) >= p.price)
-    const action: RebalanceRow['action'] = !meaningful || shares === 0 ? 'hold' : amount > 0 ? 'buy' : 'sell'
-    return { ...p, current, target, gap, amount, shares, action }
+    const within = Math.abs(gap) <= TOLERANCE && !(extra > 0 && Math.abs(amount) >= p.price)
+    const action: RebalanceRow['action'] = amount === 0 ? 'hold' : amount > 0 ? 'buy' : 'sell'
+    return { ...p, current, target, gap, amount, shares, action, within }
   })
 }

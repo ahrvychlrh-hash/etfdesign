@@ -168,8 +168,8 @@ export function Rebalance({ holdings, targets, onTargets }: Props) {
           </div>
         )}
         <p className="footnote">
-          목표와 ±{TOLERANCE}%p 이내면 '유지'로 표시해요. 같은 ETF가 여러 계좌에 있으면 합쳐서 계산하고, 주식 수는 현재가 기준
-          대략치예요.
+          금액은 천원 단위로 보여줘요. 목표와 ±{TOLERANCE}%p 이내인 종목은 연하게 표시했어요(꼭 안 맞춰도 괜찮아요). 같은
+          ETF가 여러 계좌에 있으면 합쳐서 계산하고, 주식 수는 현재가 기준 대략치예요.
         </p>
       </Section>
 
@@ -300,12 +300,17 @@ function Header() {
 function Action({ r }: { r: RebalanceRow }) {
   if (r.action === 'hold') return <span className="act act--hold">● 유지</span>
   const buy = r.action === 'buy'
+  const shares = Math.abs(r.shares)
   return (
-    <span className={`act ${buy ? 'act--buy' : 'act--sell'}`}>
+    <span className={`act ${buy ? 'act--buy' : 'act--sell'} ${r.within ? 'act--soft' : ''}`}>
       <b>
-        {buy ? '▲ 매수' : '▼ 매도'} {wonShort(Math.abs(r.amount))}
+        {buy ? '▲' : '▼'} {won(Math.abs(r.amount))}
       </b>
-      <small>약 {Math.abs(r.shares).toLocaleString('ko-KR')}{unitOf(r.symbol)}</small>
+      <small>
+        {buy ? '매수' : '매도'}{' '}
+        {shares > 0 ? `약 ${shares.toLocaleString('ko-KR')}${unitOf(r.symbol)}` : `1${unitOf(r.symbol)} 미만`}
+      </small>
+      {r.within && <small>±{TOLERANCE}%p 이내</small>}
     </span>
   )
 }

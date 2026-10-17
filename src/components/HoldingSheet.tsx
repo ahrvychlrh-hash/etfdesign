@@ -65,7 +65,7 @@ function EtfSearch({ onPick, onClose }: { onPick: (p: Picked) => void; onClose: 
   useEffect(() => {
     const term = q.trim()
     // Yahoo 검색은 해외 ETF용 — 한글이나 국내 코드 형태는 국내 목록에서만 찾음
-    if (term.length < 2 || /[가-힣]/.test(term) || /^\d/.test(term)) {
+    if (term.length < 2 || /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(term) || /^\d/.test(term)) {
       setRemote([])
       return
     }

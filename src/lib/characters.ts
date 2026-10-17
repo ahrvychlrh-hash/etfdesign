@@ -32,4 +32,5 @@ export const ICONS = {
   barChart: emoji3d('Bar chart'),
   briefcase: emoji3d('Briefcase'),
   banknote: emoji3d('Dollar banknote'),
+  camera: emoji3d('Camera with flash'),
 }

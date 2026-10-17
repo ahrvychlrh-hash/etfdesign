@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { isReserve, type Account, type Holding, type Profile, type RealEstate, type Reinvest } from '../lib/types'
 import { RealEstateSection } from './RealEstateSection'
 import { realPrincipal, reinvestTotal } from '../lib/history'
@@ -29,6 +30,7 @@ interface Props {
   onRefresh: () => void
   onReinvest: (v: boolean) => void
   onManageAccounts: () => void
+  onScan: () => void
   reinvests: Reinvest[]
   /** 비상금 계좌를 뺀 투자 자산 */
   investHoldings: Holding[]
@@ -45,6 +47,15 @@ export function Holdings(props: Props) {
   const reinvested = reinvestTotal(props.reinvests)
   const principal = realPrincipal(props.investHoldings, props.reinvests)
   const realGain = etf.value - principal
+  // 계좌별 ETF 목록은 접어두고 펼치기를 눌러야 보여줌
+  const [opened, setOpened] = useState<Set<string>>(() => new Set())
+  const toggle = (id: string) =>
+    setOpened((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   return (
     <>
@@ -107,13 +118,29 @@ export function Holdings(props: Props) {
         }
       >
         <div className="stack stack--flush">
+          <button className="card card--btn scan-entry" onClick={props.onScan}>
+            <img src={ICONS.camera} alt="" className="icon3d icon3d--sm" />
+            <span className="list__main">
+              <b>증권 앱 캡처로 한 번에 입력</b>
+              <span className="muted">잔고 화면을 올리면 수량·투자금·평가금을 채워드려요</span>
+            </span>
+            <span className="chev">›</span>
+          </button>
           {accounts.map((acc) => {
             const list = holdings.filter((h) => h.accountId === acc.id).sort((a, b) => holdingValue(b) - holdingValue(a))
             const sum = portfolioSummary(list)
             const rate = portfolioReturn(list, profile.reinvest)
+            // 빈 계좌는 접을 것이 없으니 추가 버튼만 바로 보여줌
+            const expandable = list.length > 0 || isReserve(acc)
+            const isOpen = !expandable || opened.has(acc.id)
             return (
               <div key={acc.id} className="account">
-                <div className="account__head">
+                <button
+                  className="account__head account__head--btn"
+                  onClick={() => toggle(acc.id)}
+                  aria-expanded={isOpen}
+                  disabled={!expandable}
+                >
                   <img src={ICONS.briefcase} alt="" className="icon3d icon3d--xs" />
                   <span className="list__main">
                     <b>
@@ -133,9 +160,10 @@ export function Holdings(props: Props) {
                     <span className={sum.gain > 0 ? 'tone-up' : sum.gain < 0 ? 'tone-down' : 'muted'}>
                       {list.length ? pct(sum.gainPct) : ''}
                     </span>
+                    {expandable && <span className="account__chev">{isOpen ? '▴' : '▾'}</span>}
                   </span>
-                </div>
-                {isReserve(acc) && (
+                </button>
+                {isOpen && isReserve(acc) && (
                   <button className="card card--btn cash-row" onClick={onManageAccounts}>
                     <img src={ICONS.banknote} alt="" className="icon3d icon3d--xs" />
                     <span className="list__main">
@@ -145,19 +173,27 @@ export function Holdings(props: Props) {
                     <b>{won(acc.cash ?? 0)}</b>
                   </button>
                 )}
-                {list.map((h) => (
-                  <HoldingCard
-                    key={h.id}
-                    h={h}
-                    color={colors.get(h.id)}
-                    reinvest={profile.reinvest}
-                    total={isReserve(acc) ? 0 : etf.value}
-                    onEdit={onEdit}
-                  />
-                ))}
-                <button className="account__add" onClick={() => onAdd(acc.id)}>
-                  + 이 계좌에 ETF 추가
-                </button>
+                {isOpen &&
+                  list.map((h) => (
+                    <HoldingCard
+                      key={h.id}
+                      h={h}
+                      color={colors.get(h.id)}
+                      reinvest={profile.reinvest}
+                      total={isReserve(acc) ? 0 : etf.value}
+                      onEdit={onEdit}
+                    />
+                  ))}
+                {isOpen && (
+                  <button className="account__add" onClick={() => onAdd(acc.id)}>
+                    + 이 계좌에 ETF 추가
+                  </button>
+                )}
+                {expandable && (
+                  <button className="account__more" onClick={() => toggle(acc.id)} aria-expanded={isOpen}>
+                    {isOpen ? '접기 ▴' : `${isReserve(acc) ? '현금·' : ''}ETF ${list.length}개 펼치기 ▾`}
+                  </button>
+                )}
               </div>
             )
           })}
