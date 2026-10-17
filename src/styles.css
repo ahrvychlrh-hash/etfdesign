@@ -106,10 +106,17 @@ b {
 
 /* ---------- 공통 ---------- */
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 800;
   font-size: 17px;
   color: #fff;
   letter-spacing: -0.02em;
+}
+.logo .logo-mark {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.55);
 }
 .card {
   background: var(--card);
@@ -2043,4 +2050,197 @@ b {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+/* ---------- 시작 로고 화면 ---------- */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(255, 255, 255, 0.18), transparent 50%),
+    linear-gradient(170deg, #5470ff 0%, var(--primary) 55%, #3149e8 100%);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  cursor: pointer;
+}
+.splash.is-leaving {
+  opacity: 0;
+  transform: scale(1.04);
+}
+.splash__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  color: #fff;
+}
+.splash .logo-mark {
+  border-radius: 28px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5), 0 20px 50px rgba(10, 20, 90, 0.35);
+  animation: logoPop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+.wordmark {
+  font-size: 30px;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  animation: fadeUp 0.5s 0.35s ease-out both;
+}
+.wordmark b {
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+.splash__tag {
+  font-size: 14px;
+  opacity: 0.8;
+  animation: fadeUp 0.5s 0.55s ease-out both;
+}
+/* 막대가 차례로 쌓이고 동전이 톡 얹힘 */
+.logo-mark--animate .lm-bar {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: barGrow 0.45s cubic-bezier(0.3, 1.3, 0.5, 1) both;
+}
+.logo-mark--animate .lm-bar--0 {
+  transform-origin: center bottom;
+  animation-name: barRise;
+  animation-delay: 0.15s;
+}
+.logo-mark--animate .lm-bar--1 {
+  animation-delay: 0.3s;
+}
+.logo-mark--animate .lm-bar--2 {
+  animation-delay: 0.42s;
+}
+.logo-mark--animate .lm-bar--3 {
+  animation-delay: 0.54s;
+}
+.logo-mark--animate .lm-coin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: coinDrop 0.5s 0.75s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes logoPop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes barGrow {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes barRise {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes coinDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .splash *,
+  .splash {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---------- 비중 한 줄 그래프 ---------- */
+.share__bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.share__bar span {
+  min-width: 3px;
+}
+.share__legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.share__legend li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.share__legend li:first-child {
+  border-top: 0;
+}
+.share__legend li:not(:has(.level)) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+.share__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.share__other {
+  color: var(--text-3);
+}
+.level--none {
+  visibility: hidden;
+}
+.share__flag {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff4e0;
+  color: #9a5f00;
+  font-size: 12px;
+  font-weight: 600;
+}
+.share__more {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+.share__detail {
+  margin-top: 12px;
+}
+
+/* ---------- 명언 말풍선 ---------- */
+.bubble--quote {
+  margin: 0;
+  top: 22px;
+  max-width: 178px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.bubble--quote blockquote {
+  margin: 0;
+  font-weight: 700;
+  word-break: keep-all;
+}
+.bubble--quote figcaption {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
 }

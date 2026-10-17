@@ -174,42 +174,20 @@ export function Rebalance({ holdings, targets, onTargets }: Props) {
       </Section>
 
       <Section title="자산군 비중">
-        <div className="card">
-          <div className="alloc alloc--inline" aria-hidden>
-            {exposure.asset.map((s, i) => (
-              <span key={s.key} style={{ flexGrow: s.value, background: ASSET_COLORS[i % ASSET_COLORS.length] }} />
-            ))}
-          </div>
-          <ul className="legend-list">
-            {exposure.asset.map((s, i) => (
-              <li key={s.key}>
-                <i className="dot-sm" style={{ background: ASSET_COLORS[i % ASSET_COLORS.length] }} />
-                <span>{s.key}</span>
-                <b>{s.pct.toFixed(1)}%</b>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <ShareCard items={exposure.asset} />
       </Section>
 
       <Section title="나라별 비중">
-        <div className="card">
-          {judgeCountries(exposure.country).map((s) => (
-            <ExposureRow key={s.key} label={s.key} pct={s.pct} level={s.level} hint={`적정 ${s.range[0]}~${s.range[1]}%`} />
-          ))}
-        </div>
+        <ShareCard
+          items={judgeCountries(exposure.country).map((c) => ({ ...c, hint: '적정 ' + c.range[0] + '~' + c.range[1] + '%' }))}
+        />
       </Section>
 
       <Section title="섹터별 비중 (주식 부분)">
-        <div className="card">
-          {exposure.sector.length === 0 ? (
-            <p className="muted">주식형 ETF가 없어요.</p>
-          ) : (
-            judgeSectors(exposure.sector).map((s) => (
-              <ExposureRow key={s.key} label={s.key} pct={s.pct} level={s.level} hint={`세계 평균 ${s.ref}%`} />
-            ))
-          )}
-        </div>
+        <ShareCard
+          items={judgeSectors(exposure.sector).map((c) => ({ ...c, hint: '세계 평균 ' + c.ref + '%' }))}
+          empty="주식형 ETF가 없어요."
+        />
         <p className="footnote">
           나라·섹터 비중은 각 ETF의 기초지수 대표 구성(S&P500, 코스피 등)으로 추정한 값이에요. 테마 ETF는 해당 섹터 100%로
           봐요. 섹터는 전세계 주식 평균 비중의 1.8배(또는 +10%p)를 넘으면 높음, 주요 섹터가 평균의 40% 미만이면 낮음으로 표시해요.
@@ -219,7 +197,90 @@ export function Rebalance({ holdings, targets, onTargets }: Props) {
   )
 }
 
-const ASSET_COLORS = ['#3d5afe', '#1baf7a', '#f5a400', '#9aa3bf', '#e87ba4', '#7b5cff']
+
+/** 분류형 색 — 순서 고정 (큰 비중부터) */
+const SHARE_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948']
+const OTHER_COLOR = '#c3c8d6'
+/** 이 비중 미만은 요약에서 숨기고 '기타'로 묶음 */
+const MIN_SHOWN = 3
+
+interface ShareItem {
+  key: string
+  value: number
+  pct: number
+  level?: Level
+  hint?: string
+}
+
+/** 한 줄 막대 + 3% 이상 범례, '자세히 보기'로 전체 목록 */
+function ShareCard({ items, empty }: { items: ShareItem[]; empty?: string }) {
+  const [open, setOpen] = useState(false)
+  const nonzero = items.filter((i) => i.value > 0)
+  if (!nonzero.length) {
+    return (
+      <div className="card">
+        <p className="muted">{empty ?? '데이터가 없어요.'}</p>
+      </div>
+    )
+  }
+  const main = nonzero.filter((i) => i.pct >= MIN_SHOWN)
+  const small = nonzero.filter((i) => i.pct < MIN_SHOWN)
+  const smallPct = small.reduce((s, i) => s + i.pct, 0)
+  const color = (i: number) => SHARE_COLORS[i % SHARE_COLORS.length]
+  const flagged = items.filter((i) => i.level && i.level !== 'ok')
+
+  return (
+    <div className="card share">
+      <div
+        className="share__bar"
+        role="img"
+        aria-label={main.map((m) => `${m.key} ${m.pct.toFixed(1)}%`).join(', ')}
+      >
+        {main.map((m, i) => (
+          <span key={m.key} style={{ flexGrow: m.pct, background: color(i) }} title={`${m.key} ${m.pct.toFixed(1)}%`} />
+        ))}
+        {smallPct > 0 && <span style={{ flexGrow: smallPct, background: OTHER_COLOR }} title={`기타 ${smallPct.toFixed(1)}%`} />}
+      </div>
+
+      <ul className="share__legend">
+        {main.map((m, i) => (
+          <li key={m.key}>
+            <i className="dot-sm" style={{ background: color(i) }} />
+            <span className="share__name">{m.key}</span>
+            <b>{m.pct.toFixed(1)}%</b>
+            {m.level && <span className={`level level--${m.level}`}>{LEVEL_TEXT[m.level]}</span>}
+          </li>
+        ))}
+        {small.length > 0 && (
+          <li className="share__other">
+            <i className="dot-sm" style={{ background: OTHER_COLOR }} />
+            <span className="share__name">기타 {small.length}개 (각 3% 미만)</span>
+            <b>{smallPct.toFixed(1)}%</b>
+            {main.some((m) => m.level) && <span className="level level--none" />}
+          </li>
+        )}
+      </ul>
+
+      {flagged.length > 0 && !open && (
+        <p className="share__flag">
+          {flagged.map((f) => `${f.key} ${f.level === 'high' ? '높음' : '낮음'}`).join(' · ')}
+        </p>
+      )}
+
+      <button className="share__more" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        {open ? '접기 ▴' : '자세히 보기 ▾'}
+      </button>
+
+      {open && (
+        <div className="share__detail">
+          {items.map((m) => (
+            <ExposureRow key={m.key} label={m.key} pct={m.pct} level={m.level} hint={m.hint} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Header() {
   return (
@@ -251,18 +312,18 @@ function Action({ r }: { r: RebalanceRow }) {
 
 const LEVEL_TEXT: Record<Level, string> = { high: '▲ 높음', ok: '● 적정', low: '▼ 낮음' }
 
-function ExposureRow({ label, pct, level, hint }: { label: string; pct: number; level: Level; hint: string }) {
+function ExposureRow({ label, pct, level, hint }: { label: string; pct: number; level?: Level; hint?: string }) {
   return (
     <div className="exp-row">
       <div className="exp-row__top">
         <b>{label}</b>
         <span className="exp-row__pct">{pct.toFixed(1)}%</span>
-        <span className={`level level--${level}`}>{LEVEL_TEXT[level]}</span>
+        {level && <span className={`level level--${level}`}>{LEVEL_TEXT[level]}</span>}
       </div>
       <div className="exp-row__bar" aria-hidden>
         <span style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
-      <span className="exp-row__hint">{hint}</span>
+      {hint && <span className="exp-row__hint">{hint}</span>}
     </div>
   )
 }

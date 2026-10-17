@@ -1,12 +1,12 @@
 import { useMemo } from 'react'
 import type { Holding, Profile } from '../lib/types'
 import type { Plan } from '../lib/plan'
-import { colorMap } from '../lib/plan'
 import { ICONS, MASCOT_NAME, withWa } from '../lib/characters'
 import { Mascot } from './Mascot'
-import { holdingValue, project, requiredMonthly } from '../lib/finance'
-import { duration, pct, wonShort } from '../lib/format'
-import { primaryLabel, secondaryLabel } from '../lib/presets'
+import { LogoMark } from './Logo'
+import { project, requiredMonthly } from '../lib/finance'
+import { duration, wonShort } from '../lib/format'
+import { currentQuote } from '../lib/quotes'
 import { ProjectionChart } from './ProjectionChart'
 import { Section, Toggle, type Tab } from './ui'
 
@@ -25,22 +25,17 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
     () => project(plan.total, profile.monthly, plan.rate, profile.age, years),
     [plan.total, profile.monthly, plan.rate, profile.age, years],
   )
-  const colors = colorMap(holdings)
-  const top = [...holdings].sort((a, b) => holdingValue(b) - holdingValue(a)).slice(0, 3)
   const by60 = requiredMonthly(plan.total, plan.rate, profile.target, Math.max((60 - profile.age) * 12, 1))
-
-  const tip =
-    plan.months === 0
-      ? '목표 달성! 정말 대단해요'
-      : plan.months === null
-        ? '월 투자금을 조금 늘려볼까요?'
-        : `이대로면 ${plan.reachAge}세에\n목표 달성이에요!`
+  // 6시간마다 바뀌는 장기 투자 명언
+  const quote = currentQuote()
 
   return (
     <>
       <header className="hero">
         <div className="hero__top">
-          <span className="logo">ETF 모아</span>
+          <span className="logo">
+            <LogoMark size={24} /> ETF DESIGN
+          </span>
           <button className="pill-btn" onClick={() => onTab('goal')}>
             목표 {wonShort(profile.target)}
           </button>
@@ -56,7 +51,10 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
           <span>목표의 {(plan.progress * 100).toFixed(1)}%</span>
         </div>
         <div className="hero__stage">
-          <p className="bubble bubble--side">{tip}</p>
+          <figure className="bubble bubble--side bubble--quote">
+            <blockquote>{quote.text}</blockquote>
+            <figcaption>— {quote.by}</figcaption>
+          </figure>
           <Mascot className="hero__mascot" />
           <img className="hero__spark" src={ICONS.sparkles} alt="" />
         </div>
@@ -139,47 +137,6 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
             </p>
           )}
         </div>
-      </Section>
-
-      <Section
-        title="내 ETF"
-        action={
-          holdings.length > 0 && (
-            <button className="link" onClick={() => onTab('holdings')}>
-              전체보기 ›
-            </button>
-          )
-        }
-      >
-        {holdings.length === 0 ? (
-          <button className="card card--btn empty" onClick={onAdd}>
-            <img src={ICONS.seedling} alt="" className="icon3d" />
-            <b>첫 ETF를 등록해 보세요</b>
-            <span className="muted">검색하면 현재가가 자동으로 들어가요</span>
-          </button>
-        ) : (
-          <div className="card list">
-            {top.map((h) => {
-              const v = holdingValue(h)
-              const r = h.invested ? ((v - h.invested) / h.invested) * 100 : 0
-              return (
-                <div className="list__row" key={h.id}>
-                  <span className="badge" style={{ background: colors.get(h.id) }}>
-                    {primaryLabel(h).slice(0, 1)}
-                  </span>
-                  <span className="list__main">
-                    <b>{primaryLabel(h)}</b>
-                    <span className="muted">{secondaryLabel(h)}</span>
-                  </span>
-                  <span className="list__num">
-                    <b>{wonShort(v)}</b>
-                    <span className={r > 0 ? 'tone-up' : r < 0 ? 'tone-down' : 'muted'}>{pct(r)}</span>
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
       </Section>
     </>
   )

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import type { Profile } from '../lib/types'
 import { MASCOT_NAME, withWa } from '../lib/characters'
 import { Mascot } from './Mascot'
+import { LogoMark } from './Logo'
 import { MoneyInput } from './MoneyInput'
 import { monthsToTarget } from '../lib/finance'
 import { duration, wonShort } from '../lib/format'
@@ -74,7 +75,9 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
                 ✕
               </button>
             ) : (
-              <span className="logo">ETF 모아</span>
+              <span className="logo">
+                <LogoMark size={24} /> ETF DESIGN
+              </span>
             )}
             <div className="dots" aria-label={`${STEPS.length}단계 중 ${step + 1}단계`}>
               {STEPS.map((s, i) => (
