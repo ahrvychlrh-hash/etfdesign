@@ -2,11 +2,11 @@ import { useMemo } from 'react'
 import type { Holding, Profile } from '../lib/types'
 import type { Plan } from '../lib/plan'
 import { colorMap } from '../lib/plan'
-import { character, ICONS, withWa } from '../lib/characters'
+import { ICONS, MASCOT_NAME } from '../lib/characters'
 import { Mascot } from './Mascot'
 import { holdingValue, project, requiredMonthly } from '../lib/finance'
 import { duration, pct, wonShort } from '../lib/format'
-import { displayTicker } from '../lib/presets'
+import { primaryLabel, secondaryLabel } from '../lib/presets'
 import { ProjectionChart } from './ProjectionChart'
 import { Section, Toggle, type Tab } from './ui'
 
@@ -20,7 +20,6 @@ interface Props {
 }
 
 export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Props) {
-  const me = character(profile.character)
   const years = Math.min(Math.max(plan.months === null ? 30 : Math.ceil(plan.months / 12) + 3, 10), 60)
   const points = useMemo(
     () => project(plan.total, profile.monthly, plan.rate, profile.age, years),
@@ -46,7 +45,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
             목표 {wonShort(profile.target)}
           </button>
         </div>
-        <p className="hero__hello">{withWa(me.name)} 함께 차곡차곡</p>
+        <p className="hero__hello">{MASCOT_NAME}와 함께 차곡차곡</p>
         <h1 className="hero__title">
           총 자산 <b>{wonShort(plan.total)}</b>
         </h1>
@@ -57,8 +56,8 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
           <span>목표의 {(plan.progress * 100).toFixed(1)}%</span>
         </div>
         <div className="hero__stage">
-          <p className="bubble bubble--right">{tip}</p>
-          <Mascot id={me.id} className="hero__mascot" />
+          <p className="bubble bubble--side">{tip}</p>
+          <Mascot className="hero__mascot" />
           <img className="hero__spark" src={ICONS.sparkles} alt="" />
         </div>
       </header>
@@ -96,7 +95,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
       </div>
 
       <Section title="한눈에 보기">
-        <div className="hscroll">
+        <div className="info-grid">
           <InfoCard
             tone="navy"
             kicker="목표까지 얼마나?"
@@ -106,9 +105,9 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
           />
           <InfoCard
             tone="blue"
-            kicker={plan.etfRate == null ? '기본 가정' : profile.reinvest ? '배당 재투자 포함' : '가격 상승만'}
+            kicker={plan.etfRate == null ? 'ETF 등록 전 기본 가정' : '보유 ETF 비중 평균'}
             title={`연 ${plan.rate.toFixed(1)}%`}
-            sub="기대 수익률"
+            sub={plan.etfRate == null ? "기대 수익률" : profile.reinvest ? "배당 재투자 포함" : "가격 상승분만"}
             icon={ICONS.chart}
           />
           <InfoCard
@@ -166,11 +165,11 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
               return (
                 <div className="list__row" key={h.id}>
                   <span className="badge" style={{ background: colors.get(h.id) }}>
-                    {h.name.slice(0, 1)}
+                    {primaryLabel(h).slice(0, 1)}
                   </span>
                   <span className="list__main">
-                    <b>{h.name}</b>
-                    <span className="muted">{displayTicker(h.symbol)}</span>
+                    <b>{primaryLabel(h)}</b>
+                    <span className="muted">{secondaryLabel(h)}</span>
                   </span>
                   <span className="list__num">
                     <b>{wonShort(v)}</b>

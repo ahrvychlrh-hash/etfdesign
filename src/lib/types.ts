@@ -1,18 +1,11 @@
-import type { CharacterId } from './characters'
-
 export interface Profile {
   age: number
-  /** 현금·예금 등 ETF 외 자산 (원) */
-  cash: number
   /** 모으고 싶은 목표 금액 (원) */
   target: number
   /** 매달 투자 가능한 금액 (원) */
   monthly: number
-  /** 보유 ETF가 없을 때 쓰는 기본 연 수익률 (%) */
-  annualReturn: number
   /** 배당금 재투자 여부 */
   reinvest: boolean
-  character: CharacterId
   createdAt: string
 }
 

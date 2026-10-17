@@ -1,5 +1,4 @@
 import type { Account, AppState, EtfStats, Holding, Profile } from './types'
-import type { CharacterId } from './characters'
 
 const KEY = 'etf-planner/v1'
 
@@ -27,15 +26,10 @@ function migrateHolding(h: OldHolding, accountIds: Set<string>): Holding {
   }
 }
 
-const CHARACTER_IDS: CharacterId[] = ['star', 'momo', 'robo']
-
+/** 예전 버전의 현금·기본 수익률·캐릭터 선택 값은 더 이상 쓰지 않음 */
 function migrateProfile(p: Profile | null | undefined): Profile | null {
   if (!p) return null
-  return {
-    ...p,
-    reinvest: p.reinvest ?? true,
-    character: CHARACTER_IDS.includes(p.character) ? p.character : 'star',
-  }
+  return { age: p.age, target: p.target, monthly: p.monthly, reinvest: p.reinvest ?? true, createdAt: p.createdAt }
 }
 
 export function loadState(): AppState {

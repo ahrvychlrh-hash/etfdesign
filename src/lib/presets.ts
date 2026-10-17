@@ -55,6 +55,21 @@ function krPresets(rows: KrEtfRow[]): EtfPreset[] {
   return presets
 }
 
+/** 국내 상장(.KS/.KQ)이 아니면 해외 ETF */
+export function isForeign(symbol: string) {
+  return !/\.(KS|KQ)$/.test(symbol)
+}
+
+/** 큰 제목: 해외 ETF는 티커, 국내 ETF는 이름 */
+export function primaryLabel(h: { symbol: string; name: string }) {
+  return isForeign(h.symbol) ? h.symbol : h.name
+}
+
+/** 작은 설명: 해외 ETF는 이름, 국내 ETF는 종목코드 */
+export function secondaryLabel(h: { symbol: string; name: string }) {
+  return isForeign(h.symbol) ? h.name : displayTicker(h.symbol)
+}
+
 /** 화면에 보여줄 짧은 코드 (360750.KS → 360750) */
 export function displayTicker(symbol: string) {
   return symbol.replace(/\.(KS|KQ)$/, '')

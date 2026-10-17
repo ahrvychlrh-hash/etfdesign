@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Account, AppState, Holding, Profile } from './lib/types'
 import { clearState, emptyState, loadState, saveState } from './lib/storage'
 import { fetchQuote } from './lib/api'
-import { computePlan } from './lib/plan'
+import { computePlan, DEFAULT_RATE } from './lib/plan'
 import { Onboarding } from './components/Onboarding'
 import { Home } from './components/Home'
 import { Holdings } from './components/Holdings'
@@ -60,9 +60,13 @@ export default function App() {
     setState((s) => ({ ...s, profile: s.profile && { ...s.profile, ...patch } }))
 
   if (!state.profile || editingProfile) {
+    const preview = state.profile ? computePlan(state.profile, state.holdings) : null
     return (
       <Onboarding
         initial={state.profile}
+        currentTotal={preview?.total ?? 0}
+        rate={preview?.rate ?? DEFAULT_RATE}
+        rateFromEtf={preview?.etfRate != null}
         onCancel={state.profile ? () => setEditingProfile(false) : undefined}
         onDone={(profile) => {
           setState((s) => ({ ...s, profile }))
@@ -123,7 +127,6 @@ export default function App() {
               profile={profile}
               plan={plan}
               onEdit={() => setEditingProfile(true)}
-              onCharacter={(character) => updateProfile({ character })}
               onReset={() => {
                 clearState()
                 setState(emptyState())
@@ -140,16 +143,14 @@ export default function App() {
           initial={editing}
           accounts={accounts}
           defaultAccountId={('newIn' in sheet && sheet.newIn) || accounts[0].id}
-          cash={profile.cash}
           reinvest={profile.reinvest}
           onClose={() => setSheet(null)}
           onManageAccounts={() => setAccountsOpen(true)}
-          onSave={(h, deduct) => {
+          onSave={(h) => {
             setState((s) => {
               const exists = s.holdings.some((x) => x.id === h.id)
               return {
                 ...s,
-                profile: s.profile && { ...s.profile, cash: Math.max(s.profile.cash - deduct, 0) },
                 holdings: exists ? s.holdings.map((x) => (x.id === h.id ? h : x)) : [...s.holdings, h],
               }
             })

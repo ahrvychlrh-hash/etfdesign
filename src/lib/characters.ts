@@ -6,24 +6,8 @@ export function emoji3d(folder: string) {
   return `${BASE}/${encodeURIComponent(folder)}/3D/${file}_3d.png`
 }
 
-/** 메인 캐릭터 3종 — 실제 모델은 components/Mascot3D.tsx */
-export const CHARACTERS = [
-  { id: 'star', name: '별이', intro: '반짝반짝 별이' },
-  { id: 'momo', name: '몽이', intro: '복슬복슬 몽이' },
-  { id: 'robo', name: '로보', intro: '척척박사 로보' },
-] as const
-
-export type CharacterId = (typeof CHARACTERS)[number]['id']
-
-export function character(id: CharacterId | undefined) {
-  return CHARACTERS.find((c) => c.id === id) ?? CHARACTERS[0]
-}
-
-/** 받침 조사: 별이와 / 로보와 */
-export function withWa(name: string) {
-  const code = name.charCodeAt(name.length - 1) - 0xac00
-  return code >= 0 && code % 28 !== 0 ? `${name}과` : `${name}와`
-}
+/** 메인 캐릭터 이름 — 모델은 components/Mascot3D.tsx */
+export const MASCOT_NAME = '콤코미'
 
 export const ICONS = {
   calendar: emoji3d('Spiral calendar'),

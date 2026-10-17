@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { Account, EtfStats, Holding } from '../lib/types'
 import { fetchQuote, loadKrEtfs, searchRemote, type KrEtfRow, type SearchItem } from '../lib/api'
-import { displayTicker, searchPresets } from '../lib/presets'
+import { displayTicker, isForeign, searchPresets } from '../lib/presets'
 import { ASSET_CLASSES, expectedBreakdown } from '../lib/expected'
 import { ICONS } from '../lib/characters'
 import { groupDigits, parseNumber, won, wonShort } from '../lib/format'
@@ -11,9 +11,8 @@ interface Props {
   initial?: Holding
   accounts: Account[]
   defaultAccountId: string
-  cash: number
   reinvest: boolean
-  onSave: (h: Holding, deductFromCash: number) => void
+  onSave: (h: Holding) => void
   onDelete?: () => void
   onClose: () => void
   onManageAccounts: () => void
@@ -128,10 +127,21 @@ function ResultRow({ symbol, name, sub, onPick }: { symbol: string; name: string
     <li>
       <button className="result" onClick={() => onPick({ symbol, name })}>
         <span className="list__main">
-          <b>{name}</b>
-          <span className="muted">
-            {displayTicker(symbol)} · {sub}
-          </span>
+          {isForeign(symbol) ? (
+            <>
+              <b>{symbol}</b>
+              <span className="muted">
+                {name} · {sub}
+              </span>
+            </>
+          ) : (
+            <>
+              <b>{name}</b>
+              <span className="muted">
+                {displayTicker(symbol)} · {sub}
+              </span>
+            </>
+          )}
         </span>
         <span className="chev">›</span>
       </button>
@@ -146,7 +156,6 @@ function HoldingForm({
   initial,
   accounts,
   defaultAccountId,
-  cash,
   reinvest,
   onBack,
   onSave,
@@ -163,7 +172,6 @@ function HoldingForm({
   const [name, setName] = useState(initial?.name ?? picked.name)
   const [livePrice, setLivePrice] = useState<number | null>(null)
   const [status, setStatus] = useState<'loading' | 'ok' | 'error'>('loading')
-  const [deduct, setDeduct] = useState(false)
   // 수량을 바꿀 때 평균가와 투자금 중 마지막에 직접 입력한 쪽을 유지
   const costAnchor = useRef<'avg' | 'invested'>('invested')
   const modeRef = useRef(mode)
@@ -193,7 +201,6 @@ function HoldingForm({
   const avg = qty > 0 ? invested / qty : 0
   const evaluation = qty * price
   const valid = qty > 0 && invested > 0 && price > 0
-  const canDeduct = !initial && invested > 0 && invested <= cash
   const gain = evaluation - invested
   const exp = expectedBreakdown({ name, symbol: picked.symbol, currentPrice: price || livePrice || 0, stats }, reinvest)
   const yearlyDiv = qty * (stats?.divPerShare ?? 0)
@@ -223,8 +230,7 @@ function HoldingForm({
   function submit(e: FormEvent) {
     e.preventDefault()
     if (!valid) return
-    onSave(
-      {
+    onSave({
         id: initial?.id ?? crypto.randomUUID(),
         accountId,
         symbol: picked.symbol,
@@ -234,9 +240,7 @@ function HoldingForm({
         currentPrice: price,
         priceMode: mode,
         stats,
-      },
-      canDeduct && deduct ? invested : 0,
-    )
+    })
   }
 
   return (
@@ -257,9 +261,9 @@ function HoldingForm({
       <div className="etf-head">
         <span className="list__main">
           <span className="muted">
-            {displayTicker(picked.symbol)} · {ASSET_CLASSES[exp.assetClass].label}
+            {isForeign(picked.symbol) ? name : displayTicker(picked.symbol)} · {ASSET_CLASSES[exp.assetClass].label}
           </span>
-          <b className="etf-head__name">{name}</b>
+          <b className="etf-head__name">{isForeign(picked.symbol) ? picked.symbol : name}</b>
         </span>
         <span className="etf-head__price">
           <span className="muted">현재가</span>
@@ -339,13 +343,6 @@ function HoldingForm({
             <b>{yearlyDiv > 0 ? `${wonShort(yearlyDiv)} (세후 ${wonShort(yearlyDiv * 0.846)})` : '배당 없음'}</b>
           </div>
         </div>
-      )}
-
-      {canDeduct && (
-        <label className="check">
-          <input type="checkbox" checked={deduct} onChange={(e) => setDeduct(e.target.checked)} />
-          <span>현재 자산(현금)에서 {won(invested)} 빼기</span>
-        </label>
       )}
 
       <div className="sheet__actions">

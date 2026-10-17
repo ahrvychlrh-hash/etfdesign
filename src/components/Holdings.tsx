@@ -13,7 +13,7 @@ import {
   portfolioSummary,
 } from '../lib/finance'
 import { pct, won, wonShort } from '../lib/format'
-import { displayTicker } from '../lib/presets'
+import { primaryLabel, secondaryLabel } from '../lib/presets'
 import { Section, Toggle } from './ui'
 
 interface Props {
@@ -147,12 +147,12 @@ function HoldingCard({
     <button className="card card--btn holding" onClick={() => onEdit(h)}>
       <div className="holding__top">
         <span className="badge" style={{ background: color }}>
-          {h.name.slice(0, 1)}
+          {primaryLabel(h).slice(0, 1)}
         </span>
         <span className="list__main">
-          <b>{h.name}</b>
+          <b>{primaryLabel(h)}</b>
           <span className="muted">
-            {displayTicker(h.symbol)} · {h.quantity.toLocaleString('ko-KR')}주 · 평균 {won(avgPrice(h))}
+            {secondaryLabel(h)} · {h.quantity.toLocaleString('ko-KR')}주 · 평균 {won(avgPrice(h))}
           </span>
         </span>
         <span className="list__num">
@@ -216,8 +216,8 @@ function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<stri
               {payers.map((h) => (
                 <li key={h.id}>
                   <i className="dot-sm" style={{ background: colors.get(h.id) }} />
-                  <span className="div__name">{h.name}</span>
-                  <span className="muted">{h.stats?.payMonths.length ? `${h.stats.payMonths.join('·')}월` : ''}</span>
+                  <span className="div__name">{primaryLabel(h)}</span>
+                  <span className="muted">{payLabel(h.stats?.payMonths ?? [])}</span>
                   <b>{wonShort(holdingDividend(h))}</b>
                 </li>
               ))}
@@ -230,4 +230,11 @@ function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<stri
       </div>
     </Section>
   )
+}
+
+/** 지급 월 표시 — 거의 매달 주면 '매월' */
+function payLabel(months: number[]) {
+  if (!months.length) return ''
+  if (months.length >= 10) return '매월'
+  return `${months.join('·')}월`
 }
