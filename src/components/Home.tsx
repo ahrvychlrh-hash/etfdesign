@@ -52,22 +52,34 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
           </button>
         </div>
         <p className="hero__hello">{withWa(MASCOT_NAME)} 함께 차곡차곡</p>
-        <h1 className="hero__title">
-          총 자산 <b>{wonShort(plan.total)}</b>
-        </h1>
-        {plan.fixed > 0 && (
-          <p className="hero__meta">
-            투자 자산 {wonShort(plan.etf.value)}
-            {plan.reserve > 0 && <> · 비상금 {wonShort(plan.reserve)}</>}
-            {plan.realEstate > 0 && <> · 부동산 {wonShort(plan.realEstate)}</>}
-            {plan.crypto > 0 && <> · 코인 {wonShort(plan.crypto)}</>}
-          </p>
-        )}
-        <div className="hero__progress">
-          <div className="meter meter--on-blue">
-            <div className="meter__fill" style={{ width: `${plan.progress * 100}%` }} />
+        <div className="hero__total">
+        {/* 총자산 바로 밑에 목표 진행률 */}
+        <div>
+          <h1 className="hero__title">
+            총 자산 <b>{wonShort(plan.total)}</b>
+          </h1>
+          <div className="hero__progress hero__progress--tight">
+            <div className="meter meter--on-blue">
+              <div className="meter__fill" style={{ width: `${plan.progress * 100}%` }} />
+            </div>
+            <span>목표의 {(plan.progress * 100).toFixed(1)}%</span>
           </div>
-          <span>목표의 {(plan.progress * 100).toFixed(1)}%</span>
+        </div>
+        <dl className="hero__breakdown">
+          {(
+            [
+              ['투자 자산', plan.etf.value],
+              ['비상금', plan.reserve],
+              ['부동산', plan.realEstate],
+              ['코인', plan.crypto],
+            ] as const
+          ).map(([label, v]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{wonShort(v)}</dd>
+            </div>
+          ))}
+        </dl>
         </div>
         <div className="hero__stage">
           <figure className="hero__quote">

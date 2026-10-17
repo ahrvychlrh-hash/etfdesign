@@ -2588,3 +2588,52 @@ b {
   font-size: 14px;
   font-weight: 800;
 }
+.chip--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.chip--icon img {
+  width: 16px;
+  height: 16px;
+}
+/* 총자산 왼쪽, 내역은 오른쪽에 오른쪽 정렬 */
+.hero__total {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hero__breakdown {
+  display: grid;
+  gap: 1px;
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  text-align: right;
+}
+.hero__breakdown > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.hero__breakdown dt {
+  opacity: 0.85;
+}
+.hero__breakdown dd {
+  margin: 0;
+  font-weight: 700;
+}
+.hist-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 10px;
+  text-align: left;
+}
+.hero__progress--tight {
+  margin-top: 6px;
+}
+.hero__progress--tight .meter {
+  width: 110px;
+}

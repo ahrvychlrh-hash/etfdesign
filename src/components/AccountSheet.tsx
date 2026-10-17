@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ACCOUNT_KINDS, isReserve, type Account, type AccountKind } from '../lib/types'
+import { ACCOUNT_ICONS } from '../lib/characters'
 import { MoneyInput } from './MoneyInput'
 import { ConfirmButton } from './ui'
 
@@ -60,9 +61,10 @@ export function AccountSheet({ accounts, counts, onChange, onDelete, onClose }: 
                     <button
                       key={k}
                       type="button"
-                      className={`chip chip--select chip--sm ${a.kind === k ? 'is-on' : ''}`}
+                      className={`chip chip--select chip--sm chip--icon ${a.kind === k ? 'is-on' : ''}`}
                       onClick={() => patch(a.id, { kind: k })}
                     >
+                      <img src={ACCOUNT_ICONS[k]} alt="" />
                       {k}
                     </button>
                   ))}
@@ -108,9 +110,10 @@ export function AccountSheet({ accounts, counts, onChange, onDelete, onClose }: 
                 <button
                   key={k}
                   type="button"
-                  className={`chip chip--select chip--sm ${kind === k ? 'is-on' : ''}`}
+                  className={`chip chip--select chip--sm chip--icon ${kind === k ? 'is-on' : ''}`}
                   onClick={() => setKind(k)}
                 >
+                  <img src={ACCOUNT_ICONS[k]} alt="" />
                   {k}
                 </button>
               ))}

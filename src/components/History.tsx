@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Holding, Reinvest, Snapshot } from '../lib/types'
 import { ICONS } from '../lib/characters'
 import { holdingValue } from '../lib/finance'
@@ -28,6 +28,18 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
   const principal = realPrincipal(holdings, reinvests)
   const gain = value - principal
   const recent = rows.slice(-24)
+  // 버튼을 누를 때마다 값이 바뀌어 아래 월별 기록의 입력 폼을 엶
+  const [addTick, setAddTick] = useState(0)
+  const addButton = (
+    <button className="card card--btn hist-add" onClick={() => setAddTick((t) => t + 1)}>
+      <img src={ICONS.calendar} alt="" className="icon3d icon3d--xs" />
+      <span className="list__main">
+        <b>+ 과거 월말 자산 입력</b>
+        <span className="muted">앱을 쓰기 전 달의 기록도 넣을 수 있어요</span>
+      </span>
+      <span className="chev">›</span>
+    </button>
+  )
 
   return (
     <>
@@ -58,10 +70,12 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
             <b>아직 기록이 없어요</b>
             <span className="muted">ETF를 등록하면 이번 달부터 자동으로 기록돼요</span>
           </div>
+          {addButton}
         </div>
       ) : (
         <>
           <Section title="월말 자산">
+            {addButton}
             <div className="card">
               <MonthBars
                 bars={recent.map((r) => ({ key: r.month, month: r.month, value: r.value, faded: r.ongoing }))}
@@ -129,7 +143,7 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
         </>
       )}
 
-      <MonthTable rows={rows} onSnapshot={onSnapshot} snapshots={snapshots} />
+      <MonthTable rows={rows} onSnapshot={onSnapshot} snapshots={snapshots} addTick={addTick} />
 
       <ReinvestSection reinvests={reinvests} onAdd={onAddReinvest} onUpdate={onUpdateReinvest} onDelete={onDeleteReinvest} />
     </>
@@ -165,33 +179,62 @@ function RowTip({ row }: { row: MonthRow }) {
 
 /* ---------------- 월별 표 + 지난 기록 입력 ---------------- */
 
+/** 'YYYY-MM'의 한 달 전 */
+function prevMonth(m: string) {
+  const [y, mo] = m.split('-').map(Number)
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`
+}
+
 function MonthTable({
   rows,
   snapshots,
   onSnapshot,
+  addTick,
 }: {
   rows: MonthRow[]
   snapshots: Record<string, Snapshot>
   onSnapshot: Props['onSnapshot']
+  /** 위쪽 '과거 월말 자산 입력' 버튼을 누를 때마다 바뀜 */
+  addTick: number
 }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [month, setMonth] = useState('')
   const [value, setValue] = useState(0)
   const [principal, setPrincipal] = useState(0)
+  const [savedNote, setSavedNote] = useState('')
+  const formRef = useRef<HTMLDivElement>(null)
   const current = monthKey()
 
   function open(m: string | null) {
     const s = m ? snapshots[m] : undefined
     setEditing(m ?? 'new')
-    setMonth(m ?? '')
+    // 새 기록은 가장 오래된 기록의 한 달 전(없으면 지난달)부터
+    setMonth(m ?? prevMonth(rows[0]?.month ?? current))
     setValue(s?.value ?? 0)
     setPrincipal(s?.principal ?? 0)
+    setSavedNote('')
   }
+
+  useEffect(() => {
+    if (!addTick) return
+    open(null)
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+    // 버튼을 눌렀을 때만 실행 (open은 의존성에서 일부러 뺌)
+  }, [addTick])
+
+  const valid = /^\d{4}-\d{2}$/.test(month) && value > 0
   function save() {
-    if (!/^\d{4}-\d{2}$/.test(month) || value <= 0) return
+    if (!valid) return
     if (editing && editing !== 'new' && editing !== month) onSnapshot(editing, null)
     onSnapshot(month, { value, principal, at: new Date().toISOString(), manual: true })
     setEditing(null)
+  }
+  /** 저장하고 바로 그 전 달을 이어서 입력 (금액은 그대로 두고 고치기만) */
+  function saveAndPrev() {
+    if (!valid) return
+    onSnapshot(month, { value, principal, at: new Date().toISOString(), manual: true })
+    setSavedNote(`${monthLabel(month)} 저장했어요`)
+    setMonth(prevMonth(month))
   }
 
   return (
@@ -204,7 +247,8 @@ function MonthTable({
       }
     >
       {editing && (
-        <div className="card hist-form">
+        <div className="card hist-form" ref={formRef}>
+          {savedNote && <p className="hint hint--sm">✓ {savedNote}. 이어서 이전 달을 입력하세요.</p>}
           <label className="form-item">
             <span className="form-item__label">월</span>
             <div className="field">
@@ -235,7 +279,12 @@ function MonthTable({
             <button className="btn btn--ghost btn--sm" onClick={() => setEditing(null)}>
               취소
             </button>
-            <button className="btn btn--primary btn--sm" disabled={!/^\d{4}-\d{2}$/.test(month) || value <= 0} onClick={save}>
+            {editing === 'new' && (
+              <button className="btn btn--ghost btn--sm" disabled={!valid} onClick={saveAndPrev}>
+                저장 후 이전 달
+              </button>
+            )}
+            <button className="btn btn--primary btn--sm" disabled={!valid} onClick={save}>
               저장
             </button>
           </div>

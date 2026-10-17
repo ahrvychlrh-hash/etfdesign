@@ -68,13 +68,37 @@ function Pill({ p, r, len, m, rot }: { p: Vec3; r: number; len: number; m: THREE
   )
 }
 
+/* ---------------- 가끔 하는 동작 ---------------- */
+
+type MoveKind = 'spin' | 'wave' | 'jump' | 'happy'
+
+/** 동작별 길이(초) */
+const MOVES: Record<MoveKind, number> = { spin: 1.4, wave: 2.2, jump: 1.1, happy: 1.6 }
+
+const easeInOut = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2)
+
+/** 다음 동작까지 7~14초 */
+const nextGap = () => 7 + Math.random() * 7
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
+
 /* ---------------- 로봇 '모아' ---------------- */
 
 function Robot({ lively }: { lively: boolean }) {
   const m = useMaterials()
   const root = useRef<THREE.Group>(null)
+  // 동작(한 바퀴·점프 등)은 바라보기 회전과 섞이지 않게 안쪽 그룹에 줌
+  const actor = useRef<THREE.Group>(null)
   const head = useRef<THREE.Group>(null)
   const eyes = useRef<THREE.Group>(null)
+  const armR = useRef<THREE.Group>(null)
+  const move = useRef<{ kind: MoveKind; start: number } | null>(null)
+  // 화면을 연 지 3초 뒤 첫 동작
+  const nextAt = useRef(3)
+  const lastKind = useRef<MoveKind | null>(null)
+  const calm = useMemo(prefersReducedMotion, [])
 
   useFrame(({ clock, pointer }) => {
     const t = clock.getElapsedTime()
@@ -84,10 +108,49 @@ function Robot({ lively }: { lively: boolean }) {
     const lookX = lively ? pointer.x * 0.45 : 0
     g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, Math.sin(t * 0.7) * 0.22 + lookX, 0.06)
     g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, lively ? -pointer.y * 0.1 : 0, 0.06)
-    // 고개 갸웃
-    if (head.current) head.current.rotation.z = Math.sin(t * 1.1) * 0.06
-    // 눈 깜빡임 (약 4초마다)
-    if (eyes.current) eyes.current.scale.y = t % 4 < 0.12 ? 0.12 : 1
+
+    // 가끔 다른 동작 — 같은 동작이 연달아 나오지 않게
+    if (lively && (!calm || nextAt.current === 0) && !move.current && t >= nextAt.current) {
+      const kinds = (Object.keys(MOVES) as MoveKind[]).filter((k) => k !== lastKind.current)
+      const kind = kinds[Math.floor(Math.random() * kinds.length)]
+      move.current = { kind, start: t }
+      lastKind.current = kind
+    }
+    const mv = move.current
+    const p = mv ? Math.min((t - mv.start) / MOVES[mv.kind], 1) : 0
+    const a = actor.current
+    let squint = false
+    if (a) {
+      a.rotation.y = mv?.kind === 'spin' ? easeInOut(p) * Math.PI * 2 : 0
+      a.position.y =
+        mv?.kind === 'spin'
+          ? Math.sin(p * Math.PI) * 0.18
+          : mv?.kind === 'jump'
+            ? Math.abs(Math.sin(p * Math.PI * 2)) * 0.32
+            : 0
+      // 점프 착지 때 살짝 눌림
+      const squash = mv?.kind === 'jump' ? Math.max(0, Math.cos(p * Math.PI * 4)) * 0.06 : 0
+      a.scale.set(1 + squash, 1 - squash, 1 + squash)
+    }
+    // 오른팔을 몸 바깥으로 빼서 비스듬히 위로 들고 흔들며 인사
+    if (armR.current) {
+      const lift = mv?.kind === 'wave' ? Math.sin(Math.min(p * 4, 1) * (Math.PI / 2)) * (p > 0.8 ? (1 - p) / 0.2 : 1) : 0
+      armR.current.rotation.z = -lift * (2 + Math.sin((t - (mv?.start ?? 0)) * 12) * 0.3)
+      armR.current.position.x = 0.36 + lift * 0.35
+      armR.current.position.y = 1 + lift * 0.08
+    }
+    // 고개 갸웃 (인사·기쁨 동작 땐 끄덕끄덕)
+    if (head.current) {
+      head.current.rotation.z = Math.sin(t * 1.1) * 0.06 + (mv?.kind === 'wave' ? Math.sin(p * Math.PI) * 0.12 : 0)
+      head.current.rotation.x = mv?.kind === 'happy' ? Math.sin(p * Math.PI * 4) * 0.14 : 0
+    }
+    if (mv && (mv.kind === 'happy' || mv.kind === 'wave')) squint = true
+    if (mv && p >= 1) {
+      move.current = null
+      nextAt.current = t + nextGap()
+    }
+    // 눈 깜빡임 (약 4초마다), 기쁠 땐 눈웃음
+    if (eyes.current) eyes.current.scale.y = squint ? 0.45 : t % 4 < 0.12 ? 0.12 : 1
     // 안테나·동전이 은은하게 빛남
     const pulse = 0.75 + Math.sin(t * 3) * 0.25
     m.warm.color.setRGB(1, 0.85 + pulse * 0.1, 0.55 + pulse * 0.2)
@@ -95,7 +158,14 @@ function Robot({ lively }: { lively: boolean }) {
   })
 
   return (
-    <group ref={root}>
+    // 누르면 바로 동작
+    <group
+      ref={root}
+      onPointerDown={() => {
+        if (!move.current) nextAt.current = 0
+      }}
+    >
+      <group ref={actor}>
       {/* 머리 */}
       <group ref={head} position={[0, 1.78, 0]}>
         <Ball p={[0, 0, 0]} r={0.86} m={m.shell} s={[1.18, 0.9, 0.95]} />
@@ -150,9 +220,11 @@ function Robot({ lively }: { lively: boolean }) {
         </mesh>
       </group>
       <pointLight position={[0, 0.9, 0.9]} color="#ffd36a" intensity={1.2} distance={1.6} />
-      {[-1, 1].map((s) => (
-        <Pill key={s} p={[s * 0.3, 0.86, 0.36]} r={0.11} len={0.22} m={m.blue} rot={[0.6, 0, s * 1.15]} />
-      ))}
+      {/* 왼팔은 동전을 안고, 오른팔은 어깨를 축으로 들어 인사할 수 있게 */}
+      <Pill p={[-0.3, 0.86, 0.36]} r={0.11} len={0.22} m={m.blue} rot={[0.6, 0, -1.15]} />
+      <group ref={armR} position={[0.36, 1.0, 0.14]}>
+        <Pill p={[-0.06, -0.14, 0.22]} r={0.11} len={0.22} m={m.blue} rot={[0.6, 0, 1.15]} />
+      </group>
 
       {/* 다리 */}
       {[-1, 1].map((s) => (
@@ -161,6 +233,7 @@ function Robot({ lively }: { lively: boolean }) {
           <Ball p={[s * 0.2, 0.14, 0.06]} r={0.15} m={m.blueDeep} s={[1, 0.55, 1.25]} />
         </group>
       ))}
+      </group>
     </group>
   )
 }

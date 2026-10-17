@@ -5,7 +5,7 @@ import { CryptoSection } from './CryptoSection'
 import { realPrincipal, reinvestTotal } from '../lib/history'
 import type { Plan } from '../lib/plan'
 import { colorMap } from '../lib/plan'
-import { ICONS } from '../lib/characters'
+import { ACCOUNT_ICONS, ICONS } from '../lib/characters'
 import {
   avgPrice,
   DIVIDEND_TAX,
@@ -49,7 +49,6 @@ export function Holdings(props: Props) {
   // 재투자한 돈은 내 원금이 아니므로 빼고 실제 수익을 계산
   const reinvested = reinvestTotal(props.reinvests)
   const principal = realPrincipal(props.investHoldings, props.reinvests)
-  const realGain = etf.value - principal
   // 계좌별 ETF 목록은 접어두고 펼치기를 눌러야 보여줌
   const [opened, setOpened] = useState<Set<string>>(() => new Set())
   const toggle = (id: string) =>
@@ -82,16 +81,7 @@ export function Holdings(props: Props) {
             {wonShort(etf.gain)} ({pct(etf.gainPct)})
           </span>
         </p>
-        {reinvested > 0 && (
-          <p className="hero__meta">
-            실제 원금 {wonShort(principal)} (재투자 {wonShort(reinvested)} 제외) ·{' '}
-            <span className="on-blue-chip">
-              실제 {realGain >= 0 ? '+' : ''}
-              {wonShort(realGain)} ({principal > 0 ? pct((realGain / principal) * 100) : '—'})
-            </span>
-          </p>
-        )}
-        {plan.reserve > 0 && <p className="hero__meta">비상금 {wonShort(plan.reserve)}은 총자산에만 더하고 수익률에서는 뺐어요</p>}
+        {reinvested > 0 && <p className="hero__meta">원금 {wonShort(principal)}</p>}
         <img className="hero__corner" src={ICONS.chart} alt="" />
       </header>
 
@@ -136,7 +126,7 @@ export function Holdings(props: Props) {
                   aria-expanded={isOpen}
                   disabled={!expandable}
                 >
-                  <img src={ICONS.briefcase} alt="" className="icon3d icon3d--xs" />
+                  <img src={ACCOUNT_ICONS[acc.kind] ?? ICONS.briefcase} alt="" className="icon3d icon3d--xs" />
                   <span className="list__main">
                     <b>
                       {acc.name}{' '}
@@ -256,6 +246,8 @@ function HoldingCard({
 }
 
 function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<string, string> }) {
+  // 종목별 배당 목록은 길어서 '자세히 보기'를 눌러야 보여줌
+  const [open, setOpen] = useState(false)
   const year = holdings.reduce((s, h) => s + holdingDividend(h), 0)
   const months = monthlyDividends(holdings)
   const max = Math.max(...months, 1)
@@ -297,16 +289,21 @@ function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<stri
                 </div>
               ))}
             </div>
-            <ul className="div__list">
-              {payers.map((h) => (
-                <li key={h.id}>
-                  <i className="dot-sm" style={{ background: colors.get(h.id) }} />
-                  <span className="div__name">{primaryLabel(h)}</span>
-                  <span className="muted">{payLabel(h.stats?.payMonths ?? [])}</span>
-                  <b>{wonShort(holdingDividend(h))}</b>
-                </li>
-              ))}
-            </ul>
+            {open && (
+              <ul className="div__list">
+                {payers.map((h) => (
+                  <li key={h.id}>
+                    <i className="dot-sm" style={{ background: colors.get(h.id) }} />
+                    <span className="div__name">{primaryLabel(h)}</span>
+                    <span className="muted">{payLabel(h.stats?.payMonths ?? [])}</span>
+                    <b>{wonShort(holdingDividend(h))}</b>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button className="share__more" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+              {open ? '접기 ▴' : `종목별 배당 ${payers.length}개 자세히 보기 ▾`}
+            </button>
           </>
         ) : (
           <p className="hint hint--sm">보유 ETF 중 최근 12개월 동안 배당을 준 종목이 없어요. (TR·성장형 ETF는 배당을 자동 재투자해요)</p>

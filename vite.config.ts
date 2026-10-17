@@ -19,4 +19,6 @@ function devApi(): Plugin {
 
 export default defineConfig({
   plugins: [react(), devApi()],
+  // 이 폴더(한글 경로)에서 파일 변경 알림을 놓치는 일이 있어서 주기적으로 확인
+  server: { watch: { usePolling: true, interval: 300 } },
 })

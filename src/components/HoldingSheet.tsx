@@ -3,7 +3,7 @@ import type { Account, EtfStats, Holding } from '../lib/types'
 import { fetchQuote, loadKrEtfs, searchRemote, type KrEtfRow, type SearchItem } from '../lib/api'
 import { displayTicker, isForeign, searchPresets, unitOf } from '../lib/presets'
 import { ASSET_CLASSES, expectedBreakdown } from '../lib/expected'
-import { ICONS } from '../lib/characters'
+import { ACCOUNT_ICONS, ICONS } from '../lib/characters'
 import { groupDigits, parseNumber, won, wonShort } from '../lib/format'
 import { ConfirmButton } from './ui'
 
@@ -290,9 +290,10 @@ function HoldingForm({
             <button
               key={a.id}
               type="button"
-              className={`chip chip--select ${a.id === accountId ? 'is-on' : ''}`}
+              className={`chip chip--select chip--icon ${a.id === accountId ? 'is-on' : ''}`}
               onClick={() => setAccountId(a.id)}
             >
+              <img src={ACCOUNT_ICONS[a.kind]} alt="" />
               {a.name}
               {a.kind !== '일반' && <small> · {a.kind}</small>}
             </button>

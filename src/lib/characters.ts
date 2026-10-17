@@ -1,3 +1,5 @@
+import type { AccountKind } from './types'
+
 // UI 아이콘: Microsoft Fluent Emoji 3D (MIT License) — https://github.com/microsoft/fluentui-emoji
 const BASE = 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets'
 
@@ -32,4 +34,15 @@ export const ICONS = {
   barChart: emoji3d('Bar chart'),
   briefcase: emoji3d('Briefcase'),
   banknote: emoji3d('Dollar banknote'),
+}
+
+/** 계좌 종류별 아이콘 */
+export const ACCOUNT_ICONS: Record<AccountKind, string> = {
+  일반: emoji3d('Briefcase'),
+  ISA: emoji3d('Shield'),
+  연금저축: emoji3d('Palm tree'),
+  IRP: emoji3d('Office building'),
+  해외주식: emoji3d('Globe with meridians'),
+  금통장: emoji3d('Coin'),
+  비상금: emoji3d('Umbrella'),
 }
