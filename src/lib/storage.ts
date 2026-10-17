@@ -4,7 +4,7 @@ const KEY = 'etf-planner/v1'
 
 export const DEFAULT_ACCOUNT: Account = { id: 'default', name: '기본 계좌', kind: '일반' }
 
-const empty: AppState = { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [], targets: {} }
+const empty: AppState = { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [], targets: {}, snapshots: {}, reinvests: [], realEstates: [] }
 
 type OldHolding = Holding & { ticker?: string; avgPrice?: number; stats?: EtfStats & { divYield?: number } }
 
@@ -44,6 +44,9 @@ export function loadState(): AppState {
       accounts,
       holdings: ((parsed.holdings ?? []) as OldHolding[]).map((h) => migrateHolding(h, ids)),
       targets: parsed.targets ?? {},
+      snapshots: parsed.snapshots ?? {},
+      reinvests: parsed.reinvests ?? [],
+      realEstates: parsed.realEstates ?? [],
     }
   } catch {
     return empty
@@ -67,5 +70,5 @@ export function clearState() {
 }
 
 export function emptyState(): AppState {
-  return { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [], targets: {} }
+  return { profile: null, accounts: [DEFAULT_ACCOUNT], holdings: [], targets: {}, snapshots: {}, reinvests: [], realEstates: [] }
 }

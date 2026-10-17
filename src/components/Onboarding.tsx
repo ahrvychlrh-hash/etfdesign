@@ -10,7 +10,10 @@ import { duration, wonShort } from '../lib/format'
 interface Props {
   initial?: Profile | null
   /** 미리보기 계산용: 현재 자산(보유 ETF 합계)과 기대 수익률 */
+  /** 불어나는 투자 자산(ETF·금) 합계 */
   currentTotal: number
+  /** 불어나지 않는 자산(부동산) 합계 */
+  fixedAssets: number
   rate: number
   rateFromEtf: boolean
   onDone: (p: Profile) => void
@@ -30,7 +33,7 @@ const SMALL = [
 
 const STEPS = ['나이', '목표 금액', '월 투자금', '확인'] as const
 
-export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, onCancel }: Props) {
+export function Onboarding({ initial, currentTotal, fixedAssets, rate, rateFromEtf, onDone, onCancel }: Props) {
   const [step, setStep] = useState(initial ? STEPS.length - 1 : 0)
   const [age, setAge] = useState(initial?.age ?? 0)
   const [target, setTarget] = useState(initial?.target ?? 0)
@@ -39,7 +42,7 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
 
   const valid = [age > 0 && age < 120, target > 0, monthly >= 0, true][step]
   const isLast = step === STEPS.length - 1
-  const months = monthsToTarget(currentTotal, monthly, rate, target)
+  const months = monthsToTarget(currentTotal, monthly, rate, target - fixedAssets)
 
   const bubble = [
     `안녕하세요! 저는 ${me.name}예요.\n먼저 나이를 알려주세요`,

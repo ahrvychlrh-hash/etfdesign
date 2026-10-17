@@ -963,8 +963,8 @@ b {
   width: 100%;
   max-width: 480px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  grid-template-columns: repeat(5, 1fr);
+  padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   border-radius: 24px 24px 0 0;
@@ -2243,4 +2243,271 @@ b {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-3);
+}
+
+/* ---------- 4% 룰 카드 (한눈에 보기 전체 폭) ---------- */
+.info-grid .info--wide {
+  grid-column: 1 / -1;
+  height: auto;
+  min-height: 128px;
+}
+.info--teal {
+  background: linear-gradient(160deg, #22b38f, #0f8f78);
+}
+.info__desc {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  opacity: 0.92;
+  padding-right: 48px;
+}
+.info__desc b {
+  font-weight: 800;
+}
+
+/* ---------- 명언: 배경 위 흰 글씨 ---------- */
+.hero__quote {
+  position: absolute;
+  left: 0;
+  top: 30px;
+  z-index: 2;
+  max-width: 150px;
+  margin: 0;
+  color: #fff;
+}
+.hero__quote blockquote {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+  word-break: keep-all;
+  text-shadow: 0 1px 8px rgba(10, 20, 90, 0.25);
+}
+.hero__quote figcaption {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+/* ---------- 자산 기록 ---------- */
+.hist-note {
+  margin: -36px 16px 0 !important;
+  position: relative;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+.stack--gap {
+  margin-top: 16px;
+}
+.axis-zero {
+  stroke: #c9cedd;
+}
+.year-line {
+  stroke: #d8dcea;
+  stroke-dasharray: 3 3;
+}
+.year-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.year {
+  padding: 14px 16px;
+}
+.year__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.year__head b {
+  font-size: 16px;
+}
+.year__head .muted {
+  margin-left: auto;
+  font-size: 12px;
+}
+.year__grid,
+.div__grid--2 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.div__grid--2 {
+  grid-template-columns: 1fr 1fr;
+  margin-top: 0;
+}
+.year__grid > span {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--field);
+  font-size: 11px;
+}
+.year__grid b {
+  font-size: 15px;
+}
+.hist-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.hist-form .field--lg {
+  height: 50px;
+}
+.hist-form .field--lg input {
+  font-size: 18px;
+}
+.row-end {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.hist-table-wrap {
+  padding: 4px 0;
+}
+.hist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.hist-table th {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+.hist-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.hist-table tbody tr {
+  cursor: pointer;
+}
+.hist-table tbody tr:hover {
+  background: #fafbfe;
+}
+.hist-table tr:last-child td {
+  border-bottom: 0;
+}
+.hist-table tr.is-year td {
+  border-top: 2px solid #dfe3ef;
+}
+.hist-table .num {
+  text-align: right;
+}
+.hist-table .tag {
+  margin-left: 6px;
+}
+.reinv-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.reinv-form .field--lg {
+  height: 50px;
+}
+.reinv-form .field--lg input {
+  font-size: 18px;
+}
+.reinv-form__row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 8px;
+}
+.btn--block {
+  width: 100%;
+}
+.reinv-list {
+  margin-top: 16px;
+}
+.reinv-month {
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.reinv-month__head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.reinv-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 13px;
+}
+.reinv-item__memo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+.reinv-item .confirm__q {
+  display: none;
+}
+.tabbar button span {
+  font-size: 10.5px;
+}
+
+/* ---------- 부동산 ---------- */
+.re-sum {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.re-sum b {
+  font-size: 18px;
+}
+.re-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  text-align: left;
+}
+.re-item > b {
+  font-size: 15px;
+  white-space: nowrap;
+}
+.re-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.re-form .field--lg {
+  height: 50px;
+}
+.re-form .field--lg input {
+  font-size: 18px;
+}
+.re-empty {
+  font-size: 13px;
+  line-height: 1.6;
 }

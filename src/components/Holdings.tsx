@@ -1,4 +1,6 @@
-import type { Account, Holding, Profile } from '../lib/types'
+import type { Account, Holding, Profile, RealEstate, Reinvest } from '../lib/types'
+import { RealEstateSection } from './RealEstateSection'
+import { realPrincipal, reinvestTotal } from '../lib/history'
 import type { Plan } from '../lib/plan'
 import { colorMap } from '../lib/plan'
 import { ICONS } from '../lib/characters'
@@ -13,7 +15,7 @@ import {
   portfolioSummary,
 } from '../lib/finance'
 import { pct, won, wonShort } from '../lib/format'
-import { primaryLabel, secondaryLabel } from '../lib/presets'
+import { primaryLabel, secondaryLabel, unitOf } from '../lib/presets'
 import { Section, Toggle } from './ui'
 
 interface Props {
@@ -27,12 +29,20 @@ interface Props {
   onRefresh: () => void
   onReinvest: (v: boolean) => void
   onManageAccounts: () => void
+  reinvests: Reinvest[]
+  realEstates: RealEstate[]
+  onSaveRealEstate: (r: RealEstate) => void
+  onDeleteRealEstate: (id: string) => void
 }
 
 export function Holdings(props: Props) {
   const { profile, accounts, holdings, plan, refreshing, onAdd, onEdit, onRefresh, onReinvest, onManageAccounts } = props
   const colors = colorMap(holdings)
   const { etf } = plan
+  // 재투자한 돈은 내 원금이 아니므로 빼고 실제 수익을 계산
+  const reinvested = reinvestTotal(props.reinvests)
+  const principal = realPrincipal(holdings, props.reinvests)
+  const realGain = etf.value - principal
 
   return (
     <>
@@ -56,6 +66,15 @@ export function Holdings(props: Props) {
             {wonShort(etf.gain)} ({pct(etf.gainPct)})
           </span>
         </p>
+        {reinvested > 0 && (
+          <p className="hero__meta">
+            실제 원금 {wonShort(principal)} (재투자 {wonShort(reinvested)} 제외) ·{' '}
+            <span className="on-blue-chip">
+              실제 {realGain >= 0 ? '+' : ''}
+              {wonShort(realGain)} ({principal > 0 ? pct((realGain / principal) * 100) : '—'})
+            </span>
+          </p>
+        )}
         <img className="hero__corner" src={ICONS.chart} alt="" />
       </header>
 
@@ -125,6 +144,8 @@ export function Holdings(props: Props) {
           </p>
         </div>
       </Section>
+
+      <RealEstateSection items={props.realEstates} onSave={props.onSaveRealEstate} onDelete={props.onDeleteRealEstate} />
     </>
   )
 }
@@ -154,7 +175,7 @@ function HoldingCard({
         <span className="list__main">
           <b>{primaryLabel(h)}</b>
           <span className="muted">
-            {secondaryLabel(h)} · {h.quantity.toLocaleString('ko-KR')}주 · 평균 {won(avgPrice(h))}
+            {secondaryLabel(h)} · {h.quantity.toLocaleString('ko-KR')}{unitOf(h.symbol)} · 평균 {won(avgPrice(h))}
           </span>
         </span>
         <span className="list__num">

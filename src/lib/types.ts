@@ -27,7 +27,7 @@ export interface EtfStats {
   updatedAt: string
 }
 
-export const ACCOUNT_KINDS = ['일반', 'ISA', '연금저축', 'IRP', '해외주식'] as const
+export const ACCOUNT_KINDS = ['일반', 'ISA', '연금저축', 'IRP', '해외주식', '금통장'] as const
 export type AccountKind = (typeof ACCOUNT_KINDS)[number]
 
 export interface Account {
@@ -58,4 +58,40 @@ export interface AppState {
   holdings: Holding[]
   /** 리밸런싱 목표 비중 (심볼 → %) */
   targets: Record<string, number>
+  /** 월말 자산 기록 ('YYYY-MM' → 기록) */
+  snapshots: Record<string, Snapshot>
+  /** 원금이 아닌 재투자 기록 */
+  reinvests: Reinvest[]
+  /** 부동산 — 총자산에는 넣고 수익률 계산에서는 뺌 */
+  realEstates: RealEstate[]
+}
+
+export interface RealEstate {
+  id: string
+  name: string
+  /** 현재 가치 (원) */
+  value: number
+  memo?: string
+}
+
+/** 한 달의 마지막 자산 상태 */
+export interface Snapshot {
+  /** 평가금 합계 (원) */
+  value: number
+  /** 실제 원금 = 투자금 합계 - 재투자 합계 (원) */
+  principal: number
+  /** 마지막으로 기록한 시각 */
+  at: string
+  /** 직접 입력한 기록이면 자동으로 덮어쓰지 않음 */
+  manual?: boolean
+}
+
+export interface Reinvest {
+  id: string
+  /** 'YYYY-MM' */
+  month: string
+  /** sell: 판 돈을 다시 투자, dividend: 받은 배당을 다시 투자 */
+  kind: 'sell' | 'dividend'
+  amount: number
+  memo?: string
 }

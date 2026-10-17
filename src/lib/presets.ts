@@ -6,7 +6,24 @@ export interface EtfPreset {
   name: string
   /** 검색 보조 키워드 (별명 등) */
   tags?: string
-  market: '국내' | '미국'
+  market: '국내' | '미국' | '실물'
+}
+
+/** 금 현물(금통장) — 1g 단위, 국제 금 시세 원화 환산 (server/yahoo.ts의 GOLD_GRAM과 같은 값) */
+export const GOLD_GRAM = 'GOLD-G'
+
+const SPECIAL: EtfPreset[] = [
+  { symbol: GOLD_GRAM, name: '금 현물 (금통장 · 1g 단위)', tags: '금 골드 gold 금통장 금계좌 실물 현물', market: '실물' },
+]
+
+/** ETF가 아닌 실물 자산 */
+export function isSpecial(symbol: string) {
+  return SPECIAL.some((p) => p.symbol === symbol)
+}
+
+/** 보유량 단위 — 금은 그램, 나머지는 주 */
+export function unitOf(symbol: string) {
+  return symbol === GOLD_GRAM ? 'g' : '주'
 }
 
 /** 국내 ETF 별명 (예: 슈드) — 코드 기준 */
@@ -57,7 +74,7 @@ function krPresets(rows: KrEtfRow[]): EtfPreset[] {
 
 /** 국내 상장(.KS/.KQ)이 아니면 해외 ETF */
 export function isForeign(symbol: string) {
-  return !/\.(KS|KQ)$/.test(symbol)
+  return !/\.(KS|KQ)$/.test(symbol) && !isSpecial(symbol)
 }
 
 /** 큰 제목: 해외 ETF는 티커, 국내 ETF는 이름 */
@@ -67,11 +84,13 @@ export function primaryLabel(h: { symbol: string; name: string }) {
 
 /** 작은 설명: 해외 ETF는 이름, 국내 ETF는 종목코드 */
 export function secondaryLabel(h: { symbol: string; name: string }) {
+  if (isSpecial(h.symbol)) return '국제 금 시세 원화 환산'
   return isForeign(h.symbol) ? h.name : displayTicker(h.symbol)
 }
 
 /** 화면에 보여줄 짧은 코드 (360750.KS → 360750) */
 export function displayTicker(symbol: string) {
+  if (symbol === GOLD_GRAM) return '금통장'
   return symbol.replace(/\.(KS|KQ)$/, '')
 }
 
@@ -79,7 +98,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[\s()·.-]/g, '')
 
 /** 국내 전체 목록(시가총액 순) + 대표 미국 ETF에서 검색 */
 export function searchPresets(q: string, krRows: KrEtfRow[], limit = 40): EtfPreset[] {
-  const all = [...krPresets(krRows), ...US_PRESETS]
+  const all = [...SPECIAL, ...krPresets(krRows), ...US_PRESETS]
   const s = norm(q)
   if (!s) return all.slice(0, 10)
   const words = q.trim().toLowerCase().split(/\s+/).map(norm).filter(Boolean)

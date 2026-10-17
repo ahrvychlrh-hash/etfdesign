@@ -4,7 +4,7 @@ import type { Plan } from '../lib/plan'
 import { ICONS, MASCOT_NAME, withWa } from '../lib/characters'
 import { Mascot } from './Mascot'
 import { LogoMark } from './Logo'
-import { project, requiredMonthly } from '../lib/finance'
+import { project, requiredMonthly, withdrawalPlan } from '../lib/finance'
 import { duration, wonShort } from '../lib/format'
 import { currentQuote } from '../lib/quotes'
 import { ProjectionChart } from './ProjectionChart'
@@ -21,11 +21,22 @@ interface Props {
 
 export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Props) {
   const years = Math.min(Math.max(plan.months === null ? 30 : Math.ceil(plan.months / 12) + 3, 10), 60)
+  // 투자 자산만 불어나고, 부동산은 그대로 더해지는 고정값으로 봄
   const points = useMemo(
-    () => project(plan.total, profile.monthly, plan.rate, profile.age, years),
-    [plan.total, profile.monthly, plan.rate, profile.age, years],
+    () =>
+      project(plan.etf.value, profile.monthly, plan.rate, profile.age, years).map((p) => ({
+        ...p,
+        value: p.value + plan.realEstate,
+        contributed: p.contributed + plan.realEstate,
+      })),
+    [plan.etf.value, plan.realEstate, profile.monthly, plan.rate, profile.age, years],
   )
-  const by60 = requiredMonthly(plan.total, plan.rate, profile.target, Math.max((60 - profile.age) * 12, 1))
+  const by60 = requiredMonthly(
+    plan.etf.value,
+    plan.rate,
+    profile.target - plan.realEstate,
+    Math.max((60 - profile.age) * 12, 1),
+  )
   // 6시간마다 바뀌는 장기 투자 명언
   const quote = currentQuote()
 
@@ -44,6 +55,11 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
         <h1 className="hero__title">
           총 자산 <b>{wonShort(plan.total)}</b>
         </h1>
+        {plan.realEstate > 0 && (
+          <p className="hero__meta">
+            투자 자산 {wonShort(plan.etf.value)} · 부동산 {wonShort(plan.realEstate)}
+          </p>
+        )}
         <div className="hero__progress">
           <div className="meter meter--on-blue">
             <div className="meter__fill" style={{ width: `${plan.progress * 100}%` }} />
@@ -51,12 +67,11 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
           <span>목표의 {(plan.progress * 100).toFixed(1)}%</span>
         </div>
         <div className="hero__stage">
-          <figure className="bubble bubble--side bubble--quote">
+          <figure className="hero__quote">
             <blockquote>{quote.text}</blockquote>
             <figcaption>— {quote.by}</figcaption>
           </figure>
           <Mascot className="hero__mascot" />
-          <img className="hero__spark" src={ICONS.sparkles} alt="" />
         </div>
       </header>
 
@@ -64,7 +79,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
         <button className="card card--btn quick" onClick={() => onTab('holdings')}>
           <img src={ICONS.barChart} alt="" className="icon3d" />
           <span className="quick__text">
-            <span className="muted">보유 ETF</span>
+            <span className="muted">투자 자산 (ETF·금)</span>
             <b>
               {holdings.length}개 · {wonShort(plan.etf.value)}
             </b>
@@ -105,7 +120,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
             tone="blue"
             kicker={plan.etfRate == null ? 'ETF 등록 전 기본 가정' : '보유 ETF 비중 평균'}
             title={`연 ${plan.rate.toFixed(1)}%`}
-            sub={plan.etfRate == null ? "기대 수익률" : profile.reinvest ? "배당 재투자 포함" : "가격 상승분만"}
+            sub={plan.etfRate == null ? '기대 수익률' : profile.reinvest ? '배당 재투자 포함' : '가격 상승분만'}
             icon={ICONS.chart}
           />
           <InfoCard
@@ -122,6 +137,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
             sub="남은 금액"
             icon={ICONS.bullseye}
           />
+          <WithdrawCard target={profile.target} rate={plan.rate} />
         </div>
       </Section>
 
@@ -155,6 +171,30 @@ function InfoCard(props: {
       <b className="info__title">{props.title}</b>
       <span className="info__sub">{props.sub}</span>
       <img src={props.icon} alt="" className="info__icon" />
+    </div>
+  )
+}
+
+/** 목표 달성 후 4% 룰로 매달 꺼내 쓸 수 있는 돈 */
+function WithdrawCard({ target, rate }: { target: number; rate: number }) {
+  const w = withdrawalPlan(target, rate)
+  const growthPct = w.growth * 100
+  return (
+    <div className="info info--teal info--wide">
+      <span className="info__kicker">목표 달성 후 매달 꺼내 쓸 돈 · 4% 룰</span>
+      <b className="info__title">월 {wonShort(w.monthly)}</b>
+      {growthPct > 0 ? (
+        <span className="info__desc">
+          연 {rate.toFixed(1)}% 수익률이 유지되면 해마다 <b>+{growthPct.toFixed(1)}%</b>씩 늘어나요
+          <br />
+          내년 월 {wonShort(w.nextYearMonthly)} · 10년 뒤 월 {wonShort(w.tenYearMonthly)}
+        </span>
+      ) : (
+        <span className="info__desc">
+          수익률이 연 {rate.toFixed(1)}%라 4%씩 꺼내면 자산이 조금씩 줄어들 수 있어요
+        </span>
+      )}
+      <img src={ICONS.banknote} alt="" className="info__icon" />
     </div>
   )
 }

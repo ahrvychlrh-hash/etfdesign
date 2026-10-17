@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { Account, EtfStats, Holding } from '../lib/types'
 import { fetchQuote, loadKrEtfs, searchRemote, type KrEtfRow, type SearchItem } from '../lib/api'
-import { displayTicker, isForeign, searchPresets } from '../lib/presets'
+import { displayTicker, isForeign, searchPresets, unitOf } from '../lib/presets'
 import { ASSET_CLASSES, expectedBreakdown } from '../lib/expected'
 import { ICONS } from '../lib/characters'
 import { groupDigits, parseNumber, won, wonShort } from '../lib/format'
@@ -198,6 +198,9 @@ function HoldingForm({
     }
   }, [picked.symbol, initial])
 
+  // 금 현물은 그램 단위
+  const unit = unitOf(picked.symbol)
+  const gram = unit === 'g'
   const avg = qty > 0 ? invested / qty : 0
   const evaluation = qty * price
   const valid = qty > 0 && invested > 0 && price > 0
@@ -266,7 +269,7 @@ function HoldingForm({
           <b className="etf-head__name">{isForeign(picked.symbol) ? picked.symbol : name}</b>
         </span>
         <span className="etf-head__price">
-          <span className="muted">현재가</span>
+          <span className="muted">{gram ? '1g 시세' : '현재가'}</span>
           <b>{status === 'loading' ? '불러오는 중…' : livePrice != null ? won(livePrice) : '—'}</b>
           {stats && stats.currency !== 'KRW' && status === 'ok' && (
             <span className="muted">
@@ -301,14 +304,14 @@ function HoldingForm({
       </div>
 
       <div className="form-grid">
-        <NumberField label="보유 주식수" suffix="주" value={qty} onChange={changeQty} autoFocus={!initial} />
+        <NumberField label={gram ? '보유량' : '보유 주식수'} suffix={unit} value={qty} onChange={changeQty} autoFocus={!initial} />
         <NumberField label="투자금 (총 매입금액)" suffix="원" value={invested} onChange={changeInvested} />
         <NumberField
-          label="평균매입가"
+          label={gram ? '1g당 평균 매입가' : '평균매입가'}
           suffix="원"
           value={Math.round(avg)}
           onChange={changeAvg}
-          hint={qty > 0 && invested > 0 ? '투자금 ÷ 주식수로 자동 계산' : '투자금을 넣으면 자동 계산돼요'}
+          hint={qty > 0 && invested > 0 ? gram ? '투자금 ÷ 보유량으로 자동 계산' : '투자금 ÷ 주식수로 자동 계산' : '투자금을 넣으면 자동 계산돼요'}
         />
         <NumberField
           label="평가금"
@@ -317,7 +320,7 @@ function HoldingForm({
           onChange={changeEvaluation}
           hint={
             mode === 'auto' ? (
-              '현재가 × 주식수로 자동 계산'
+              gram ? '1g 시세 × 보유량으로 자동 계산' : '현재가 × 주식수로 자동 계산'
             ) : livePrice != null ? (
               <button type="button" className="link" onClick={backToLive}>
                 현재가로 되돌리기
@@ -378,7 +381,7 @@ function ExpectedCard({ exp, reinvest }: { exp: ReturnType<typeof expectedBreakd
         )}
         {exp.source === 'index' && (
           <>
-            {exp.etfYears > 0 ? `상장 ${exp.etfYears}년이라 ` : '신규 상장이라 '}기초지수 <b>{exp.indexLabel}</b>의{' '}
+            {exp.etfYears > 0 ? `과거 데이터가 ${exp.etfYears}년뿐이라 ` : '신규 상장이라 '}기초지수 <b>{exp.indexLabel}</b>의{' '}
             {Math.round(exp.basisYears)}년 연평균 <b>{exp.basisRate.toFixed(1)}%</b> 적용
           </>
         )}

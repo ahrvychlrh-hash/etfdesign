@@ -63,6 +63,27 @@ export function requiredMonthly(start: number, annualReturnPct: number, target: 
   return (target - grown) / factor
 }
 
+/** 4% 룰: 은퇴 자산의 4%를 매년 꺼내 쓰는 방식 */
+export const WITHDRAW_RATE = 0.04
+
+/**
+ * 목표 금액을 모은 뒤 4%씩 꺼내 쓸 때의 생활비.
+ * 매년 초에 자산의 4%를 꺼내고 나머지가 연 수익률로 불어난다고 보면,
+ * 다음 해 자산(=꺼내 쓰는 금액)은 (1 - 4%) × (1 + 수익률)배가 됩니다.
+ */
+export function withdrawalPlan(target: number, annualReturnPct: number) {
+  const yearly = target * WITHDRAW_RATE
+  const growth = (1 - WITHDRAW_RATE) * (1 + annualReturnPct / 100) - 1
+  const monthlyAfter = (years: number) => (yearly * Math.pow(1 + growth, years)) / 12
+  return {
+    monthly: yearly / 12,
+    /** 해마다 꺼내 쓰는 금액이 늘어나는 비율 (소수) */
+    growth,
+    nextYearMonthly: monthlyAfter(1),
+    tenYearMonthly: monthlyAfter(10),
+  }
+}
+
 export function holdingValue(h: Holding) {
   return h.quantity * h.currentPrice
 }

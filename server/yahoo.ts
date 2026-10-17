@@ -155,9 +155,32 @@ async function yahooHistory(sym: string): Promise<History> {
   }
 }
 
+/** 금 현물(금통장) 1g 원화 시세를 나타내는 특수 심볼 */
+export const GOLD_GRAM = 'GOLD-G'
+const GRAMS_PER_TROY_OUNCE = 31.1034768
+
 export function getQuote(symbol: string): Promise<QuoteResult> {
   const sym = symbol.trim().toUpperCase()
   return cached(`q:${sym}`, 5 * 60_000, async () => {
+    if (sym === GOLD_GRAM) {
+      // 국제 금 선물(달러/온스) × 환율 ÷ 31.1g = 원화 1g 가격
+      const [hist, fx] = await Promise.all([yahooHistory('GC=F'), usdKrw()])
+      const perGram = (hist.price * fx) / GRAMS_PER_TROY_OUNCE
+      return {
+        symbol: GOLD_GRAM,
+        name: '금 현물 (금통장)',
+        currency: 'KRW',
+        nativePrice: perGram,
+        price: perGram,
+        fx: 1,
+        priceCagr: hist.priceCagr,
+        totalCagr: hist.totalCagr,
+        years: hist.years,
+        div12m: 0,
+        payMonths: [],
+      }
+    }
+
     const krCode = sym.match(/^([0-9A-Z]{6})\.(KS|KQ)$/)?.[1]
 
     if (krCode) {

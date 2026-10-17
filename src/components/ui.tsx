@@ -59,7 +59,7 @@ export function Section({ title, action, children }: { title: string; action?: R
   )
 }
 
-export type Tab = 'home' | 'holdings' | 'rebalance' | 'goal'
+export type Tab = 'home' | 'holdings' | 'history' | 'rebalance' | 'goal'
 
 export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
   const items: { id: Tab; label: string; icon: ReactNode }[] = [
@@ -72,6 +72,16 @@ export function TabBar({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void
       id: 'holdings',
       label: '보유 ETF',
       icon: <path d="M5 19V11M10 19V6M15 19v-5M20 19V9" strokeLinecap="round" />,
+    },
+    {
+      id: 'history',
+      label: '기록',
+      icon: (
+        <>
+          <rect x="4" y="5" width="16" height="15" rx="3" />
+          <path d="M4 10h16M9 3v4M15 3v4" strokeLinecap="round" />
+        </>
+      ),
     },
     {
       id: 'rebalance',
