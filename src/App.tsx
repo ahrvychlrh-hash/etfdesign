@@ -139,7 +139,6 @@ export default function App() {
             <Rebalance
               holdings={holdings}
               targets={state.targets}
-              monthly={profile.monthly}
               onTargets={(targets) => setState((s) => ({ ...s, targets }))}
             />
           )}
@@ -148,7 +147,6 @@ export default function App() {
               profile={profile}
               plan={plan}
               onEdit={() => setEditingProfile(true)}
-              onCharacter={(character) => updateProfile({ character })}
               onReset={() => {
                 clearState()
                 setState(emptyState())

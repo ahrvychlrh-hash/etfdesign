@@ -72,6 +72,8 @@ export function Holdings(props: Props) {
         <Toggle on={profile.reinvest} onChange={onReinvest} label="배당금 재투자" />
       </div>
 
+      {etf.value > 0 && <AccountShare accounts={accounts} holdings={holdings} total={etf.value} />}
+
       {holdings.length > 0 && <Dividends holdings={holdings} colors={colors} />}
 
       <Section
@@ -237,4 +239,43 @@ function payLabel(months: number[]) {
   if (!months.length) return ''
   if (months.length >= 10) return '매월'
   return `${months.join('·')}월`
+}
+
+/** 계좌별 색 — 계좌 순서로 고정 */
+const ACCOUNT_COLORS = ['#3d5afe', '#ff7a45', '#1baf7a', '#f5a400', '#7b5cff', '#e87ba4', '#008300', '#e34948']
+
+function AccountShare({ accounts, holdings, total }: { accounts: Account[]; holdings: Holding[]; total: number }) {
+  const rows = accounts
+    .map((a, i) => {
+      const value = holdings.filter((h) => h.accountId === a.id).reduce((s, h) => s + holdingValue(h), 0)
+      return { ...a, value, pct: (value / total) * 100, color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length] }
+    })
+    .filter((r) => r.value > 0)
+
+  return (
+    <Section title="계좌별 자산 비중">
+      <div className="card">
+        <div className="acc-bar" role="img" aria-label={rows.map((r) => `${r.name} ${r.pct.toFixed(1)}%`).join(', ')}>
+          {rows.map((r) => (
+            <span key={r.id} style={{ flexGrow: r.value, background: r.color }} title={`${r.name} ${r.pct.toFixed(1)}%`}>
+              {r.pct >= 12 && <b>{r.pct.toFixed(0)}%</b>}
+            </span>
+          ))}
+        </div>
+        <ul className="acc-legend">
+          {rows.map((r) => (
+            <li key={r.id}>
+              <i className="dot-sm" style={{ background: r.color }} />
+              <span className="acc-legend__name">
+                {r.name}
+                {r.kind !== '일반' && <span className="tag tag--blue tag--xs">{r.kind}</span>}
+              </span>
+              <span className="muted">{wonShort(r.value)}</span>
+              <b>{r.pct.toFixed(1)}%</b>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Section>
+  )
 }

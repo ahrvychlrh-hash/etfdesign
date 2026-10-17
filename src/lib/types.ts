@@ -1,5 +1,3 @@
-import type { CharacterId } from './characters'
-
 export interface Profile {
   age: number
   /** 모으고 싶은 목표 금액 (원) */
@@ -8,7 +6,6 @@ export interface Profile {
   monthly: number
   /** 배당금 재투자 여부 */
   reinvest: boolean
-  character: CharacterId
   createdAt: string
 }
 

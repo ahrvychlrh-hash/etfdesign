@@ -12,20 +12,22 @@ import { Section, Toggle } from './ui'
 interface Props {
   holdings: Holding[]
   targets: Record<string, number>
-  monthly: number
   onTargets: (t: Record<string, number>) => void
 }
 
-export function Rebalance({ holdings, targets, monthly, onTargets }: Props) {
+export function Rebalance({ holdings, targets, onTargets }: Props) {
   const list = useMemo(() => positions(holdings), [holdings])
-  const [extra, setExtra] = useState(monthly)
+  // 기본은 0원: 지금 가진 자산 안에서 사고팔 금액을 보여줌
+  const [extra, setExtra] = useState(0)
   const [buyOnly, setBuyOnly] = useState(false)
   // 입력 중인 값("33.")을 그대로 보여주기 위해 문자열로 보관
   const [drafts, setDrafts] = useState<Record<string, string>>({})
 
   const sumTarget = list.reduce((s, p) => s + (targets[p.symbol] ?? 0), 0)
   const hasTargets = sumTarget > 0
-  const rows = rebalance(list, targets, extra, buyOnly)
+  // 추가 투자금이 없으면 '추가 매수로만'은 의미가 없으므로 사고팔기로 계산
+  const buyOnlyActive = buyOnly && extra > 0
+  const rows = rebalance(list, targets, extra, buyOnlyActive)
   const buyTotal = rows.filter((r) => r.action === 'buy').reduce((s, r) => s + r.amount, 0)
   const sellTotal = rows.filter((r) => r.action === 'sell').reduce((s, r) => s - r.amount, 0)
   const exposure = useMemo(() => portfolioExposure(holdings), [holdings])
@@ -38,18 +40,10 @@ export function Rebalance({ holdings, targets, monthly, onTargets }: Props) {
     setDrafts((d) => ({ ...d, [symbol]: clean }))
     onTargets({ ...targets, [symbol]: Math.min(Number(clean) || 0, 100) })
   }
-  /** 반올림 오차는 가장 큰 종목에 몰아서 합계를 정확히 100%로 */
-  function fill(next: Record<string, number>) {
-    const keys = Object.keys(next)
-    if (keys.length) {
-      const diff = Math.round((100 - keys.reduce((s, k) => s + next[k], 0)) * 10) / 10
-      const top = keys.reduce((a, b) => (next[b] > next[a] ? b : a))
-      next = { ...next, [top]: Math.round((next[top] + diff) * 10) / 10 }
-    }
+  function clearTargets() {
     setDrafts({})
-    onTargets(next)
+    onTargets({})
   }
-  const total = list.reduce((s, p) => s + p.value, 0)
 
   if (!list.length) {
     return (
@@ -72,16 +66,23 @@ export function Rebalance({ holdings, targets, monthly, onTargets }: Props) {
 
       <div className="card float-row--single reb-controls">
         <div className="reb-controls__row">
-          <span className="form-item__label">이번에 추가로 넣을 돈</span>
+          <span className="form-item__label">이번에 추가로 넣을 돈 (선택)</span>
           <MoneyInput id="extra" value={extra} onChange={setExtra} />
+          <span className="form-item__hint">
+            {extra > 0
+              ? '추가 투자금까지 합쳐서 목표 비중에 맞춰요.'
+              : '비워두면 지금 가진 자산 안에서 얼마를 사고팔지 보여줘요.'}
+          </span>
         </div>
-        <div className="reinvest reinvest--flat">
-          <div className="reinvest__text">
-            <b>팔지 않고 추가 매수로만 맞추기</b>
-            <span className="muted">끄면 많은 종목은 팔고 적은 종목은 사서 정확히 맞춰요</span>
+        {extra > 0 && (
+          <div className="reinvest reinvest--flat">
+            <div className="reinvest__text">
+              <b>팔지 않고 추가 매수로만 맞추기</b>
+              <span className="muted">끄면 많은 종목은 팔고 적은 종목은 사서 정확히 맞춰요</span>
+            </div>
+            <Toggle on={buyOnly} onChange={setBuyOnly} label="추가 매수로만 맞추기" />
           </div>
-          <Toggle on={buyOnly} onChange={setBuyOnly} label="추가 매수로만 맞추기" />
-        </div>
+        )}
       </div>
 
       <Section
@@ -92,18 +93,10 @@ export function Rebalance({ holdings, targets, monthly, onTargets }: Props) {
           </span>
         }
       >
-        <div className="chips chips--wrap reb-fill">
-          <button
-            className="chip"
-            onClick={() => fill(Object.fromEntries(list.map((p) => [p.symbol, Math.round((p.value / total) * 1000) / 10])))}
-          >
-            현재 비중으로 채우기
-          </button>
-          <button className="chip" onClick={() => fill(Object.fromEntries(list.map((p) => [p.symbol, Math.round(1000 / list.length) / 10])))}>
-            똑같이 나누기
-          </button>
+        <div className="reb-fill">
+          <span className="form-item__hint">목표 칸에 원하는 비중(%)을 직접 입력하세요.</span>
           {hasTargets && (
-            <button className="chip chip--ghost" onClick={() => fill({})}>
+            <button className="chip chip--ghost" onClick={clearTargets}>
               목표 지우기
             </button>
           )}

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { Profile } from '../lib/types'
-import { character, withWa, type CharacterId } from '../lib/characters'
-import { CharacterPicker, Mascot } from './Mascot'
+import { MASCOT_NAME, withWa } from '../lib/characters'
+import { Mascot } from './Mascot'
 import { MoneyInput } from './MoneyInput'
 import { monthsToTarget } from '../lib/finance'
 import { duration, wonShort } from '../lib/format'
@@ -34,8 +34,7 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
   const [age, setAge] = useState(initial?.age ?? 0)
   const [target, setTarget] = useState(initial?.target ?? 0)
   const [monthly, setMonthly] = useState(initial?.monthly ?? 0)
-  const [char, setChar] = useState<CharacterId>(initial?.character ?? 'sheep')
-  const me = character(char)
+  const me = { name: MASCOT_NAME }
 
   const valid = [age > 0 && age < 120, target > 0, monthly >= 0, true][step]
   const isLast = step === STEPS.length - 1
@@ -57,7 +56,6 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
       target,
       monthly,
       reinvest: initial?.reinvest ?? true,
-      character: char,
       createdAt: initial?.createdAt ?? new Date().toISOString(),
     })
   }
@@ -95,7 +93,7 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
             <p className="bubble bubble--onb" key={bubble}>
               {bubble}
             </p>
-            <Mascot id={char} className="mascot--onb" />
+            <Mascot className="mascot--onb" />
           </div>
         </div>
 
@@ -132,8 +130,6 @@ export function Onboarding({ initial, currentTotal, rate, rateFromEtf, onDone, o
           )}
           {step === 3 && (
             <>
-              <p className="q">함께할 친구</p>
-              <CharacterPicker value={char} onChange={setChar} />
               <dl className="summary">
                 <SummaryRow label="나이" value={`${age}세`} onEdit={() => setStep(0)} />
                 <SummaryRow label="목표 금액" value={wonShort(target)} onEdit={() => setStep(1)} />

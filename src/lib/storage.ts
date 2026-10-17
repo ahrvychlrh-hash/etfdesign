@@ -26,11 +26,10 @@ function migrateHolding(h: OldHolding, accountIds: Set<string>): Holding {
   }
 }
 
-/** 예전 버전의 현금·기본 수익률 값은 버리고, 없는 캐릭터는 몽실이로 */
+/** 예전 버전의 현금·기본 수익률·캐릭터 선택 값은 더 이상 쓰지 않음 */
 function migrateProfile(p: Profile | null | undefined): Profile | null {
   if (!p) return null
-  const character = (['sheep', 'cow', 'duck'] as const).find((c) => c === p.character) ?? 'sheep'
-  return { age: p.age, target: p.target, monthly: p.monthly, reinvest: p.reinvest ?? true, character, createdAt: p.createdAt }
+  return { age: p.age, target: p.target, monthly: p.monthly, reinvest: p.reinvest ?? true, createdAt: p.createdAt }
 }
 
 export function loadState(): AppState {

@@ -1992,3 +1992,55 @@ b {
   white-space: nowrap;
   font-size: 12px;
 }
+
+/* ---------- 계좌별 자산 비중 ---------- */
+.acc-bar {
+  display: flex;
+  gap: 3px;
+  height: 28px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.acc-bar span {
+  display: grid;
+  place-items: center;
+  min-width: 4px;
+  color: #fff;
+  font-size: 12px;
+}
+.acc-legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.acc-legend li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 56px;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.acc-legend li:first-child {
+  border-top: 0;
+}
+.acc-legend b {
+  text-align: right;
+}
+.acc-legend__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+.reb-fill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}

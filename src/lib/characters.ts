@@ -6,20 +6,10 @@ export function emoji3d(folder: string) {
   return `${BASE}/${encodeURIComponent(folder)}/3D/${file}_3d.png`
 }
 
-/** 캐릭터 3종 — 모델은 components/Mascot3D.tsx */
-export const CHARACTERS = [
-  { id: 'sheep', name: '몽실이', intro: '포근포근 양' },
-  { id: 'cow', name: '음메', intro: '듬직한 소' },
-  { id: 'duck', name: '덕구', intro: '시크한 오리' },
-] as const
+/** 메인 캐릭터 로봇 이름 — 모델은 components/Mascot3D.tsx */
+export const MASCOT_NAME = '모아'
 
-export type CharacterId = (typeof CHARACTERS)[number]['id']
-
-export function character(id: CharacterId | undefined) {
-  return CHARACTERS.find((c) => c.id === id) ?? CHARACTERS[0]
-}
-
-/** 받침에 따라 와/과: 몽실이와 / 덕구와 */
+/** 받침에 따라 와/과: 모아와 / 로봇과 */
 export function withWa(name: string) {
   const code = name.charCodeAt(name.length - 1) - 0xac00
   return code >= 0 && code % 28 !== 0 ? `${name}과` : `${name}와`
