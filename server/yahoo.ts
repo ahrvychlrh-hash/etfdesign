@@ -284,7 +284,12 @@ export function searchEtf(query: string): Promise<SearchItem[]> {
       `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=12&newsCount=0`,
     )
     return ((j.quotes ?? []) as Record<string, string>[])
-      .filter((x) => x.quoteType === 'ETF' && !/\.(KS|KQ)$/.test(x.symbol))
+      .filter(
+        (x) =>
+          (x.quoteType === 'ETF' && !/\.(KS|KQ)$/.test(x.symbol)) ||
+          // 가상자산은 달러 시세(BTC-USD)만 — 원화 환산은 getQuote에서
+          (x.quoteType === 'CRYPTOCURRENCY' && /^[A-Z0-9]+-USD$/.test(x.symbol)),
+      )
       .map((x) => ({ symbol: x.symbol, name: x.longname ?? x.shortname ?? x.symbol, exchange: x.exchDisp ?? '' }))
   })
 }

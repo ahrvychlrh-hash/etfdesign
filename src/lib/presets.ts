@@ -6,7 +6,7 @@ export interface EtfPreset {
   name: string
   /** 검색 보조 키워드 (별명 등) */
   tags?: string
-  market: '국내' | '미국' | '실물'
+  market: '국내' | '미국' | '실물' | '코인'
 }
 
 /** 금 현물(금통장) — 1g 단위, 국제 금 시세 원화 환산 (server/yahoo.ts의 GOLD_GRAM과 같은 값) */
@@ -21,9 +21,19 @@ export function isSpecial(symbol: string) {
   return SPECIAL.some((p) => p.symbol === symbol)
 }
 
-/** 보유량 단위 — 금은 그램, 나머지는 주 */
+/** 가상자산 — Yahoo 형식 'BTC-USD' (달러 시세를 원화로 환산) */
+export function isCrypto(symbol: string) {
+  return /^[A-Z0-9]+-USD$/.test(symbol)
+}
+
+/** 보유량 단위 — 금은 그램, 코인은 개, 나머지는 주 */
 export function unitOf(symbol: string) {
-  return symbol === GOLD_GRAM ? 'g' : '주'
+  return symbol === GOLD_GRAM ? 'g' : isCrypto(symbol) ? '개' : '주'
+}
+
+/** 보유량 표시 — 코인은 소수점 8자리까지 */
+export function formatQty(symbol: string, qty: number) {
+  return qty.toLocaleString('ko-KR', { maximumFractionDigits: isCrypto(symbol) ? 8 : 3 })
 }
 
 /** 국내 ETF 별명 (예: 슈드) — 코드 기준 */
@@ -63,6 +73,24 @@ const US: [string, string, string?][] = [
 
 const US_PRESETS: EtfPreset[] = US.map(([symbol, name, tags]) => ({ symbol, name, tags, market: '미국' }))
 
+/** 대표 가상자산 — 목록에 없는 코인은 영문 티커로 검색 (Yahoo) */
+const CRYPTO: [string, string, string?][] = [
+  ['BTC-USD', '비트코인', 'bitcoin 비트 코인 가상자산 암호화폐 크립토'],
+  ['ETH-USD', '이더리움', 'ethereum 이더 코인 가상자산 암호화폐 크립토'],
+  ['XRP-USD', '리플', 'ripple xrp 코인 가상자산'],
+  ['SOL-USD', '솔라나', 'solana 코인 가상자산'],
+  ['DOGE-USD', '도지코인', 'dogecoin 도지 코인 가상자산'],
+  ['BNB-USD', '바이낸스코인', 'binance bnb 코인 가상자산'],
+  ['ADA-USD', '에이다', 'cardano 카르다노 코인 가상자산'],
+  ['TRX-USD', '트론', 'tron 코인 가상자산'],
+  ['LINK-USD', '체인링크', 'chainlink 코인 가상자산'],
+  ['AVAX-USD', '아발란체', 'avalanche 코인 가상자산'],
+  ['DOT-USD', '폴카닷', 'polkadot 코인 가상자산'],
+  ['USDT-USD', '테더', 'tether 스테이블코인 코인 가상자산'],
+]
+
+const CRYPTO_PRESETS: EtfPreset[] = CRYPTO.map(([symbol, name, tags]) => ({ symbol, name, tags, market: '코인' }))
+
 let krCache: { rows: KrEtfRow[]; presets: EtfPreset[] } | null = null
 
 function krPresets(rows: KrEtfRow[]): EtfPreset[] {
@@ -77,20 +105,21 @@ export function isForeign(symbol: string) {
   return !/\.(KS|KQ)$/.test(symbol) && !isSpecial(symbol)
 }
 
-/** 큰 제목: 해외 ETF는 티커, 국내 ETF는 이름 */
+/** 큰 제목: 해외 ETF·코인은 티커, 국내 ETF는 이름 */
 export function primaryLabel(h: { symbol: string; name: string }) {
-  return isForeign(h.symbol) ? h.symbol : h.name
+  return isForeign(h.symbol) ? displayTicker(h.symbol) : h.name
 }
 
-/** 작은 설명: 해외 ETF는 이름, 국내 ETF는 종목코드 */
+/** 작은 설명: 해외 ETF·코인은 이름, 국내 ETF는 종목코드 */
 export function secondaryLabel(h: { symbol: string; name: string }) {
   if (isSpecial(h.symbol)) return '국제 금 시세 원화 환산'
   return isForeign(h.symbol) ? h.name : displayTicker(h.symbol)
 }
 
-/** 화면에 보여줄 짧은 코드 (360750.KS → 360750) */
+/** 화면에 보여줄 짧은 코드 (360750.KS → 360750, BTC-USD → BTC) */
 export function displayTicker(symbol: string) {
   if (symbol === GOLD_GRAM) return '금통장'
+  if (isCrypto(symbol)) return symbol.replace(/-USD$/, '')
   return symbol.replace(/\.(KS|KQ)$/, '')
 }
 
@@ -98,7 +127,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[\s()·.-]/g, '')
 
 /** 국내 전체 목록(시가총액 순) + 대표 미국 ETF에서 검색 */
 export function searchPresets(q: string, krRows: KrEtfRow[], limit = 40): EtfPreset[] {
-  const all = [...SPECIAL, ...krPresets(krRows), ...US_PRESETS]
+  const all = [...SPECIAL, ...krPresets(krRows), ...US_PRESETS, ...CRYPTO_PRESETS]
   const s = norm(q)
   if (!s) return all.slice(0, 10)
   const words = q.trim().toLowerCase().split(/\s+/).map(norm).filter(Boolean)

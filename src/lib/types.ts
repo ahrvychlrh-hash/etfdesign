@@ -27,7 +27,7 @@ export interface EtfStats {
   updatedAt: string
 }
 
-export const ACCOUNT_KINDS = ['일반', 'ISA', '연금저축', 'IRP', '해외주식', '금통장', '비상금'] as const
+export const ACCOUNT_KINDS = ['일반', 'ISA', '연금저축', 'IRP', '해외주식', '금통장', '코인', '비상금'] as const
 export type AccountKind = (typeof ACCOUNT_KINDS)[number]
 
 export interface Account {

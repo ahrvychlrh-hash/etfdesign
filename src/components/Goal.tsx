@@ -37,7 +37,7 @@ export function Goal({ profile, plan, onEdit, onReset }: Props) {
 
       <div className="grid2 float-row--grid">
         <Tile icon={ICONS.hourglass} label="나이" value={`${profile.age}세`} />
-        <Tile icon={ICONS.bank} label={plan.fixed > 0 ? '총자산 (비상금·부동산 포함)' : '현재 자산 (투자 합계)'} value={wonShort(plan.total)} />
+        <Tile icon={ICONS.bank} label={plan.fixed > 0 ? '총자산 (비상금·부동산·코인 포함)' : '현재 자산 (투자 합계)'} value={wonShort(plan.total)} />
         <Tile icon={ICONS.rocket} label="월 투자금" value={wonShort(profile.monthly)} />
         <Tile
           icon={ICONS.chart}

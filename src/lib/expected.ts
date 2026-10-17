@@ -50,6 +50,8 @@ export const ASSET_CLASSES = {
   reits: { label: '리츠·부동산', anchor: 6.5 },
   leveraged: { label: '레버리지', anchor: 5 },
   inverse: { label: '인버스', anchor: -4 },
+  // 코인은 총자산에만 넣고 수익률 계산에서는 빼므로(plan.ts) 표시용 분류만
+  crypto: { label: '가상자산', anchor: 0 },
   equity: { label: '주식형(기타)', anchor: 7 },
 } satisfies Record<string, AssetClass>
 
@@ -58,6 +60,7 @@ export type AssetClassId = keyof typeof ASSET_CLASSES
 const US = /미국|(^|\s)us\b|u\.s\.|s&p|나스닥|nasdaq|다우|dow|schwab|vanguard|ishares|spdr/i
 
 const RULES: [RegExp, AssetClassId | ((name: string) => AssetClassId)][] = [
+  [/-USD$|비트코인|이더리움|bitcoin|ethereum|가상자산|암호화폐|crypto/i, 'crypto'],
   [/인버스|inverse|bear\b|\bsqqq\b|\bpsq\b|\bsh\b/i, 'inverse'],
   [/레버리지|2x|3x|ultra|tqqq|soxl|upro|bull/i, 'leveraged'],
   [/커버드콜|covered call|premium income|jepi|jepq|qyld|xyld/i, 'coveredCall'],

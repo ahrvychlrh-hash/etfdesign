@@ -60,6 +60,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
             투자 자산 {wonShort(plan.etf.value)}
             {plan.reserve > 0 && <> · 비상금 {wonShort(plan.reserve)}</>}
             {plan.realEstate > 0 && <> · 부동산 {wonShort(plan.realEstate)}</>}
+            {plan.crypto > 0 && <> · 코인 {wonShort(plan.crypto)}</>}
           </p>
         )}
         <div className="hero__progress">
