@@ -7,13 +7,17 @@ import * as THREE from 'three'
  * 외부 모델 파일 없이 기본 도형으로 만들고, 둥실거리기·눈 깜빡임·안테나와 동전 빛남·포인터 바라보기 동작을 넣었습니다.
  */
 
-export default function Mascot3D({ lively = true }: { lively?: boolean }) {
+/**
+ * tall: 그림 영역을 위로 길게(높이 300px 기준) 써서 점프·회전해도 더듬이가 잘리지 않게.
+ * 캐릭터 크기와 바닥 위치는 기본과 같고 위쪽 빈 공간만 늘어남.
+ */
+export default function Mascot3D({ lively = true, tall = false }: { lively?: boolean; tall?: boolean }) {
   return (
     <Canvas
       flat
       dpr={[1, 2]}
       gl={{ alpha: true, antialias: true }}
-      camera={{ position: [0, 0.35, 7], fov: 28 }}
+      camera={tall ? { position: [0, 0.84, 7], fov: 34 } : { position: [0, 0.56, 7], fov: 29.6 }}
       style={{ background: 'transparent' }}
     >
       <ambientLight intensity={0.8} />
@@ -124,9 +128,9 @@ function Robot({ lively }: { lively: boolean }) {
       a.rotation.y = mv?.kind === 'spin' ? easeInOut(p) * Math.PI * 2 : 0
       a.position.y =
         mv?.kind === 'spin'
-          ? Math.sin(p * Math.PI) * 0.18
+          ? Math.sin(p * Math.PI) * 0.14
           : mv?.kind === 'jump'
-            ? Math.abs(Math.sin(p * Math.PI * 2)) * 0.32
+            ? Math.abs(Math.sin(p * Math.PI * 2)) * 0.2
             : 0
       // 점프 착지 때 살짝 눌림
       const squash = mv?.kind === 'jump' ? Math.max(0, Math.cos(p * Math.PI * 4)) * 0.06 : 0

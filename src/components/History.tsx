@@ -55,7 +55,13 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
           </b>{' '}
           ({principal > 0 ? pct((gain / principal) * 100) : '—'})
         </h1>
-        <p className="hero__meta">재투자한 {wonShort(reinvestTotal(reinvests))}은 원금에서 빼고 계산했어요</p>
+        {reinvestTotal(reinvests) !== 0 && (
+          <p className="hero__meta">
+            {reinvestTotal(reinvests) > 0
+              ? `재투자한 ${wonShort(reinvestTotal(reinvests))}은 원금에서 빼고 계산했어요`
+              : `매도 손실 ${wonShort(-reinvestTotal(reinvests))}은 원금에 더해 계산했어요`}
+          </p>
+        )}
         <img className="hero__corner" src={ICONS.calendar} alt="" />
       </header>
 
@@ -202,11 +208,14 @@ function MonthTable({
   const [value, setValue] = useState(0)
   const [principal, setPrincipal] = useState(0)
   const [savedNote, setSavedNote] = useState('')
+  // 표와 입력칸은 '자세히 보기'를 누르거나 기록을 추가할 때 펼침
+  const [expanded, setExpanded] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
   const current = monthKey()
 
   function open(m: string | null) {
     const s = m ? snapshots[m] : undefined
+    setExpanded(true)
     setEditing(m ?? 'new')
     // 새 기록은 가장 오래된 기록의 한 달 전(없으면 지난달)부터
     setMonth(m ?? prevMonth(rows[0]?.month ?? current))
@@ -291,7 +300,7 @@ function MonthTable({
         </div>
       )}
 
-      {rows.length > 0 && (
+      {expanded && rows.length > 0 && (
         <div className="card hist-table-wrap">
           <table className="hist-table">
             <thead>
@@ -324,7 +333,19 @@ function MonthTable({
           </table>
         </div>
       )}
-      <p className="footnote">줄을 누르면 그 달 기록을 고칠 수 있어요.</p>
+      {expanded && rows.length > 0 && <p className="footnote">줄을 누르면 그 달 기록을 고칠 수 있어요.</p>}
+      {rows.length > 0 && (
+        <button
+          className="card card--btn hist-toggle"
+          onClick={() => {
+            setExpanded((o) => !o)
+            setEditing(null)
+          }}
+          aria-expanded={expanded}
+        >
+          {expanded ? '접기 ▴' : `월별 기록 ${rows.length}개월 자세히 보기 ▾`}
+        </button>
+      )}
     </Section>
   )
 }
@@ -348,8 +369,14 @@ function ReinvestSection({
   const [kind, setKind] = useState<Reinvest['kind']>('dividend')
   const [amount, setAmount] = useState(0)
   const [memo, setMemo] = useState('')
+  /** 매도 후 재투자에서 손실을 봤는지 — 손실이면 마이너스 금액으로 저장 */
+  const [loss, setLoss] = useState(false)
   /** 수정 중인 기록 id — 있으면 위 입력칸이 수정 폼이 됨 */
   const [editingId, setEditingId] = useState<string | null>(null)
+  // 입력칸은 '재투자 기록 추가'를 눌러야, 목록은 '자세히 보기'를 눌러야 보여줌
+  const [formOpen, setFormOpen] = useState(false)
+  const [listOpen, setListOpen] = useState(false)
+  const formRef = useRef<HTMLDivElement>(null)
   const byMonth = new Map<string, Reinvest[]>()
   ;[...reinvests]
     .sort((a, b) => b.month.localeCompare(a.month))
@@ -357,7 +384,8 @@ function ReinvestSection({
 
   function save() {
     if (amount <= 0 || !/^\d{4}-\d{2}$/.test(month)) return
-    const r = { id: editingId ?? crypto.randomUUID(), month, kind, amount, memo: memo.trim() || undefined }
+    const signed = kind === 'sell' && loss ? -amount : amount
+    const r = { id: editingId ?? crypto.randomUUID(), month, kind, amount: signed, memo: memo.trim() || undefined }
     if (editingId) onUpdate(r)
     else onAdd(r)
     reset()
@@ -366,17 +394,39 @@ function ReinvestSection({
     setEditingId(null)
     setAmount(0)
     setMemo('')
+    setLoss(false)
+    setFormOpen(false)
+  }
+  function openForm() {
+    setFormOpen(true)
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
   }
   function edit(r: Reinvest) {
+    openForm()
     setEditingId(r.id)
     setMonth(r.month)
     setKind(r.kind)
-    setAmount(r.amount)
+    setAmount(Math.abs(r.amount))
+    setLoss(r.amount < 0)
     setMemo(r.memo ?? '')
   }
 
   return (
-    <Section title="재투자 기록">
+    <Section
+      title="재투자 기록"
+      action={
+        <button
+          className="link"
+          onClick={() => {
+            reset()
+            setMonth(monthKey())
+            openForm()
+          }}
+        >
+          + 재투자 기록 추가
+        </button>
+      }
+    >
       <div className="card">
         <div className="div__grid div__grid--2">
           <span>
@@ -389,7 +439,8 @@ function ReinvestSection({
           </span>
         </div>
 
-        <div className="reinv-form">
+        {formOpen && (
+        <div className="reinv-form" ref={formRef}>
           <div className="chips">
             {(['dividend', 'sell'] as const).map((k) => (
               <button key={k} type="button" className={`chip chip--select ${kind === k ? 'is-on' : ''}`} onClick={() => setKind(k)}>
@@ -397,6 +448,16 @@ function ReinvestSection({
               </button>
             ))}
           </div>
+          {kind === 'sell' && (
+            <div className="chips">
+              <button type="button" className={`chip chip--select ${!loss ? 'is-on' : ''}`} onClick={() => setLoss(false)}>
+                수익 (+)
+              </button>
+              <button type="button" className={`chip chip--select ${loss ? 'is-on' : ''}`} onClick={() => setLoss(true)}>
+                손실 (−)
+              </button>
+            </div>
+          )}
           <div className="reinv-form__row">
             <div className="field field--month">
               <input type="month" aria-label="월" value={month} max={monthKey()} onChange={(e) => setMonth(e.target.value)} />
@@ -406,21 +467,21 @@ function ReinvestSection({
             </div>
           </div>
           <MoneyInput id="reinvest-amount" value={amount} onChange={setAmount} />
+          {kind === 'sell' && loss && amount > 0 && <p className="hint hint--sm tone-down">−{won(amount)} 손실로 저장돼요.</p>}
           <button className="btn btn--primary btn--block" disabled={amount <= 0} onClick={save}>
             {editingId ? '수정 저장' : '재투자 추가'}
           </button>
-          {editingId && (
-            <button className="btn btn--ghost btn--block" onClick={reset}>
-              수정 취소
-            </button>
-          )}
+          <button className="btn btn--ghost btn--block" onClick={reset}>
+            {editingId ? '수정 취소' : '취소'}
+          </button>
           <p className="hint hint--sm">
             재투자한 돈은 내 원금이 아니라서 투자금에서 빼고 실제 수익률을 계산해요. 판 ETF를 목록에서 지웠다면 판 금액 중 수익
-            부분만 적어야 정확해요.
+            부분만 적고, 손해를 보고 팔았다면 '손실'을 골라 손실 금액을 적으면 원금에 다시 더해서 계산해요.
           </p>
         </div>
+        )}
 
-        {byMonth.size > 0 && (
+        {listOpen && byMonth.size > 0 && (
           <div className="reinv-list">
             {[...byMonth.entries()].map(([m, list]) => (
               <div key={m} className="reinv-month">
@@ -432,7 +493,7 @@ function ReinvestSection({
                   <div key={r.id} className={`reinv-item ${editingId === r.id ? 'is-editing' : ''}`}>
                     <span className={`tag tag--xs ${r.kind === 'sell' ? 'tag--warn' : 'tag--blue'}`}>{KIND_LABEL[r.kind]}</span>
                     <span className="reinv-item__memo">{r.memo ?? ''}</span>
-                    <b>{won(r.amount)}</b>
+                    <b className={r.amount < 0 ? 'tone-down' : undefined}>{won(r.amount)}</b>
                     <button className="link" onClick={() => edit(r)}>
                       수정
                     </button>
@@ -451,6 +512,11 @@ function ReinvestSection({
               </div>
             ))}
           </div>
+        )}
+        {reinvests.length > 0 && (
+          <button className="share__more" onClick={() => setListOpen((o) => !o)} aria-expanded={listOpen}>
+            {listOpen ? '접기 ▴' : `재투자 기록 ${reinvests.length}개 자세히 보기 ▾`}
+          </button>
         )}
       </div>
     </Section>

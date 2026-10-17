@@ -499,8 +499,9 @@ b {
 }
 .hero__stage {
   position: relative;
-  height: 210px;
-  margin-top: 4px;
+  /* 캐릭터(260px)가 위 글씨와 겹치지 않게 자리를 넉넉히 */
+  height: 248px;
+  margin-top: 8px;
 }
 .hero__spark {
   position: absolute;
@@ -1280,7 +1281,12 @@ b {
   right: -6px;
   bottom: -26px;
   width: 210px;
-  height: 245px;
+  /* 점프할 때 더듬이가 잘리지 않게 위쪽을 넉넉히 (위쪽은 투명해서 글씨를 가리지 않음) */
+  height: 300px;
+}
+.hero__mascot .mascot3d__shadow {
+  bottom: 3.3%;
+  height: 5.7%;
 }
 .mascot--onb {
   position: absolute;
@@ -2272,7 +2278,8 @@ b {
 .hero__quote {
   position: absolute;
   left: 0;
-  top: 30px;
+  /* 캐릭터 영역의 왼쪽 아래 */
+  bottom: 6px;
   z-index: 2;
   max-width: 150px;
   margin: 0;
@@ -2636,4 +2643,64 @@ b {
 }
 .hero__progress--tight .meter {
   width: 110px;
+}
+.hist-toggle {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+/* 리밸런싱: 꾹 누르면 종목명 전체 */
+.reb-name {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.reb-name.is-full .list__main b,
+.reb-name.is-full .list__main .muted {
+  overflow: visible;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+/* 자산 성장 예측: 조건 바꿔 보기 */
+.sim-result {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.sim-result.is-changed {
+  color: var(--primary);
+}
+.sim {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.sim__row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.sim__label {
+  color: var(--text-2);
+}
+.sim__row input[type='range'] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+.sim__value {
+  text-align: right;
+  white-space: nowrap;
+}
+.sim-reset {
+  margin-top: 12px;
 }

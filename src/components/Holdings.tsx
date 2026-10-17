@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { isReserve, type Account, type CryptoAsset, type Holding, type Profile, type RealEstate, type Reinvest } from '../lib/types'
 import { RealEstateSection } from './RealEstateSection'
 import { CryptoSection } from './CryptoSection'
-import { realPrincipal, reinvestTotal } from '../lib/history'
+import { realPrincipal } from '../lib/history'
 import type { Plan } from '../lib/plan'
 import { colorMap } from '../lib/plan'
 import { ACCOUNT_ICONS, ICONS } from '../lib/characters'
@@ -46,9 +46,9 @@ export function Holdings(props: Props) {
   const { profile, accounts, holdings, plan, refreshing, onAdd, onEdit, onRefresh, onReinvest, onManageAccounts } = props
   const colors = colorMap(holdings)
   const { etf } = plan
-  // 재투자한 돈은 내 원금이 아니므로 빼고 실제 수익을 계산
-  const reinvested = reinvestTotal(props.reinvests)
+  // 투자금 = 실제 원금 (재투자한 돈은 내 원금이 아니므로 빼고 수익 계산)
   const principal = realPrincipal(props.investHoldings, props.reinvests)
+  const gain = etf.value - principal
   // 계좌별 ETF 목록은 접어두고 펼치기를 눌러야 보여줌
   const [opened, setOpened] = useState<Set<string>>(() => new Set())
   const toggle = (id: string) =>
@@ -70,18 +70,17 @@ export function Holdings(props: Props) {
             </button>
           )}
         </div>
-        <p className="hero__hello">{plan.reserve > 0 ? '투자 평가금 (비상금 제외)' : '총 평가금'}</p>
+        <p className="hero__hello">{plan.reserve > 0 ? '투자 평가금' : '총 평가금'}</p>
         <h1 className="hero__title">
           <b>{won(etf.value)}</b>
         </h1>
         <p className="hero__meta">
-          투자금 {wonShort(etf.cost)} ·{' '}
+          투자금 {wonShort(principal)} ·{' '}
           <span className="on-blue-chip">
-            {etf.gain >= 0 ? '+' : ''}
-            {wonShort(etf.gain)} ({pct(etf.gainPct)})
+            {gain >= 0 ? '+' : ''}
+            {wonShort(gain)} ({principal > 0 ? pct((gain / principal) * 100) : '—'})
           </span>
         </p>
-        {reinvested > 0 && <p className="hero__meta">원금 {wonShort(principal)}</p>}
         <img className="hero__corner" src={ICONS.chart} alt="" />
       </header>
 

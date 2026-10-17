@@ -1,13 +1,12 @@
-import { useMemo } from 'react'
 import type { Holding, Profile } from '../lib/types'
 import type { Plan } from '../lib/plan'
 import { ICONS, MASCOT_NAME, withWa } from '../lib/characters'
 import { Mascot } from './Mascot'
 import { LogoMark } from './Logo'
-import { project, requiredMonthly, withdrawalPlan } from '../lib/finance'
+import { withdrawalPlan } from '../lib/finance'
 import { duration, wonShort } from '../lib/format'
 import { currentQuote } from '../lib/quotes'
-import { ProjectionChart } from './ProjectionChart'
+import { GrowthSection } from './GrowthSection'
 import { Section, Toggle, type Tab } from './ui'
 
 interface Props {
@@ -20,23 +19,6 @@ interface Props {
 }
 
 export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Props) {
-  const years = Math.min(Math.max(plan.months === null ? 30 : Math.ceil(plan.months / 12) + 3, 10), 60)
-  // 투자 자산만 불어나고, 부동산은 그대로 더해지는 고정값으로 봄
-  const points = useMemo(
-    () =>
-      project(plan.etf.value, profile.monthly, plan.rate, profile.age, years).map((p) => ({
-        ...p,
-        value: p.value + plan.fixed,
-        contributed: p.contributed + plan.fixed,
-      })),
-    [plan.etf.value, plan.fixed, profile.monthly, plan.rate, profile.age, years],
-  )
-  const by60 = requiredMonthly(
-    plan.etf.value,
-    plan.rate,
-    profile.target - plan.fixed,
-    Math.max((60 - profile.age) * 12, 1),
-  )
   // 6시간마다 바뀌는 장기 투자 명언
   const quote = currentQuote()
 
@@ -86,7 +68,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
             <blockquote>{quote.text}</blockquote>
             <figcaption>— {quote.by}</figcaption>
           </figure>
-          <Mascot className="hero__mascot" />
+          <Mascot className="hero__mascot" tall />
         </div>
       </header>
 
@@ -156,19 +138,7 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
         </div>
       </Section>
 
-      <Section title="자산 성장 예측">
-        <div className="card">
-          <p className="card__note">
-            매달 {wonShort(profile.monthly)} · 연 {plan.rate.toFixed(1)}% 가정
-          </p>
-          <ProjectionChart points={points} target={profile.target} />
-          {profile.age < 60 && by60 > profile.monthly && (
-            <p className="hint hint--sm">
-              60세까지 이루려면 매달 약 <b>{wonShort(by60)}</b>이 필요해요.
-            </p>
-          )}
-        </div>
-      </Section>
+      <GrowthSection profile={profile} plan={plan} />
     </>
   )
 }

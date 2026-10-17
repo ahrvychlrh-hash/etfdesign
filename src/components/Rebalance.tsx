@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState, type MouseEvent } from 'react'
 import type { Holding } from '../lib/types'
 import { ICONS } from '../lib/characters'
 import { positions, rebalance, TOLERANCE, type RebalanceRow } from '../lib/rebalance'
@@ -22,6 +22,24 @@ export function Rebalance({ holdings, targets, onTargets }: Props) {
   const [buyOnly, setBuyOnly] = useState(false)
   // 입력 중인 값("33.")을 그대로 보여주기 위해 문자열로 보관
   const [drafts, setDrafts] = useState<Record<string, string>>({})
+  // 잘린 종목명은 꾹 누르면 전체 표시, 다시 누르면 접기
+  const [fullName, setFullName] = useState<string | null>(null)
+  const pressTimer = useRef<number>()
+  const pressToShow = (symbol: string) => {
+    const cancel = () => window.clearTimeout(pressTimer.current)
+    return {
+      onPointerDown: () => {
+        if (fullName === symbol) return setFullName(null)
+        cancel()
+        pressTimer.current = window.setTimeout(() => setFullName(symbol), 400)
+      },
+      onPointerUp: cancel,
+      onPointerLeave: cancel,
+      onPointerCancel: cancel,
+      // 휴대폰에서 꾹 누를 때 뜨는 메뉴 막기
+      onContextMenu: (e: MouseEvent) => e.preventDefault(),
+    }
+  }
 
   const sumTarget = list.reduce((s, p) => s + (targets[p.symbol] ?? 0), 0)
   const hasTargets = sumTarget > 0
@@ -119,7 +137,7 @@ export function Rebalance({ holdings, targets, onTargets }: Props) {
               {rows.map((r) => (
                 <tr key={r.symbol}>
                   <td>
-                    <div className="reb-name">
+                    <div className={`reb-name ${fullName === r.symbol ? 'is-full' : ''}`} {...pressToShow(r.symbol)}>
                       <i className="dot-sm" style={{ background: colors.get(firstId.get(r.symbol) ?? '') }} />
                       <span className="list__main">
                         <b>{primaryLabel(r)}</b>
