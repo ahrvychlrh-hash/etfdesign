@@ -1,5 +1,5 @@
 import type { Holding } from './types'
-import { assetClassOf, type AssetClassId } from './expected'
+import { assetClassOf, classifyText, type AssetClassId } from './expected'
 import { holdingValue } from './finance'
 
 /**
@@ -33,17 +33,24 @@ const WORLD: Mix = { 미국: 62, 유럽: 15, 일본: 5, 신흥국: 10, '기타 �
 const EM: Mix = { 중국: 22, 대만: 20, 인도: 20, 한국: 12, '기타 신흥국': 26 }
 const EM_EX_CHINA: Mix = { 대만: 28, 인도: 27, 한국: 15, '기타 신흥국': 30 }
 
+/** 미국 제외 해외 (VXUS 등) — 선진국 위주 */
+const EX_US: Mix = { 유럽: 40, 일본: 15, '기타 선진국': 20, 신흥국: 25 }
+
 function countryMix(h: Holding, cls: AssetClassId): Mix {
-  const n = `${h.name} ${h.symbol}`
+  const n = classifyText(h.name, h.symbol)
   const us = US.test(n)
   // '중국 제외' 신흥국 ETF가 중국으로 잡히지 않게 먼저 확인
   if (/ex[- ]?china|emxc|중국제외/i.test(n)) return EM_EX_CHINA
-  if (/중국|차이나|china|홍콩|항셍/i.test(n)) return { 중국: 100 }
+  if (/한중/.test(n)) return { 한국: 50, 중국: 50 }
+  if (/international|ex[- ]us|\bvxus\b|\bvea\b|\befa\b/i.test(n)) return EX_US
+  if (/중국|차이나|china|홍콩|항셍|심천/i.test(n)) return { 중국: 100 }
+  // '인도네시아'가 인도로 잡히지 않게 먼저
+  if (/인도네시아|필리핀|멕시코|라틴|러시아/.test(n)) return { '기타 신흥국': 100 }
   if (/인도|india/i.test(n)) return { 인도: 100 }
   if (/일본|japan|니케이|topix/i.test(n)) return { 일본: 100 }
   if (/베트남|vietnam/i.test(n)) return { 베트남: 100 }
   if (/대만|taiwan/i.test(n)) return { 대만: 100 }
-  if (/유럽|euro|stoxx/i.test(n)) return { 유럽: 100 }
+  if (/유럽|유로|euro|stoxx|독일|dax/i.test(n)) return { 유럽: 100 }
   if (cls === 'gold' || cls === 'commodity') return { '국가 무관(원자재)': 100 }
   if (cls === 'crypto') return { '국가 무관(가상자산)': 100 }
   if (cls === 'world' || cls === 'equity') return /global|글로벌|전세계|world|acwi|\bvt\b/i.test(n) ? WORLD : us ? { 미국: 100 } : WORLD
@@ -110,11 +117,11 @@ const THEMES: [RegExp, string][] = [
 
 function sectorMix(h: Holding, cls: AssetClassId): Mix | null {
   if (assetBucket(cls) !== '주식') return null
-  const n = `${h.name} ${h.symbol}`
+  const n = classifyText(h.name, h.symbol)
   if (cls === 'semis') return { IT: 100 }
   // 지수형이 아닌 테마형은 테마 섹터로
   const broad = /200|코스피|kospi|s&p|500|나스닥100|nasdaq 100|qqq|다우|total|전세계|msci|top/i.test(n)
-  if (!broad || cls === 'krSector' || cls === 'equity' || cls === 'world') {
+  if (!broad || cls === 'krSector' || cls === 'equity' || cls === 'world' || cls === 'balanced') {
     for (const [re, sector] of THEMES) if (re.test(n)) return { [sector]: 100 }
   }
   switch (cls) {
@@ -135,6 +142,7 @@ function sectorMix(h: Holding, cls: AssetClassId): Mix | null {
       return EM_SECTOR
     case 'coveredCall':
     case 'leveraged':
+    case 'balanced':
       if (/나스닥|nasdaq|qqq|tqqq|jepq/i.test(n)) return NDX
       if (/배당|dividend|다우|dow/i.test(n)) return US.test(n) ? US_DIV : KR_DIV
       if (/코스닥/.test(n)) return KOSDAQ
@@ -173,10 +181,17 @@ export function portfolioExposure(holdings: Holding[]) {
     const v = holdingValue(h)
     if (v <= 0) continue
     const cls = assetClassOf(h.name, h.symbol)
-    asset[assetBucket(cls)] = (asset[assetBucket(cls)] ?? 0) + v
+    // 채권혼합·TDF 같은 혼합형은 주식 절반, 채권 절반으로 봄
+    const stock = cls === 'balanced' ? v / 2 : v
+    if (cls === 'balanced') {
+      asset['주식'] = (asset['주식'] ?? 0) + stock
+      asset['채권'] = (asset['채권'] ?? 0) + (v - stock)
+    } else {
+      asset[assetBucket(cls)] = (asset[assetBucket(cls)] ?? 0) + v
+    }
     addMix(country, countryMix(h, cls), v)
     const sm = sectorMix(h, cls)
-    if (sm) addMix(sector, sm, v)
+    if (sm) addMix(sector, sm, stock)
   }
   return { asset: toSlices(asset), country: toSlices(country), sector: toSlices(sector) }
 }

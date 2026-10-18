@@ -52,6 +52,8 @@ export const ASSET_CLASSES = {
   inverse: { label: '인버스', anchor: -4 },
   // 코인 ETF(IBIT 등) — 비트코인 과거 성과(연 50%+)는 예측에 쓰기엔 변동이 너무 커서 보수적인 고정값
   crypto: { label: '가상자산(코인 ETF)', anchor: 8 },
+  // 채권혼합·TDF·TRF 등 주식과 채권을 섞은 상품 — 주식·채권의 중간값
+  balanced: { label: '주식·채권 혼합', anchor: 6 },
   equity: { label: '주식형(기타)', anchor: 7 },
 } satisfies Record<string, AssetClass>
 
@@ -59,29 +61,74 @@ export type AssetClassId = keyof typeof ASSET_CLASSES
 
 const US = /미국|(^|\s)us\b|u\.s\.|s&p|나스닥|nasdaq|다우|dow|schwab|vanguard|ishares|spdr/i
 
+/** 한국·미국이 아닌 해외 시장 */
+const FOREIGN = /중국|차이나|china|한중|홍콩|항셍|심천|인도|india|베트남|신흥|이머징|emerging|\bem\b|em선물|일본|japan|유럽|유로|euro|독일|dax|stoxx|대만|taiwan|tsmc|아시아|러시아|멕시코|라틴|필리핀|인도네시아|샤오미|byd/i
+const KOREA = /코리아|한국|코스피|코스닥/i
+
 const RULES: [RegExp, AssetClassId | ((name: string) => AssetClassId)][] = [
   [/비트코인|이더리움|bitcoin|ethereum|ether\b|가상자산|암호화폐|crypto|\bibit\b|\bfbtc\b|\bbito\b|\betha\b/i, 'crypto'],
   [/인버스|inverse|bear\b|\bsqqq\b|\bpsq\b|\bsh\b/i, 'inverse'],
   [/레버리지|2x|3x|ultra|tqqq|soxl|upro|bull/i, 'leveraged'],
   [/커버드콜|covered call|premium income|jepi|jepq|qyld|xyld/i, 'coveredCall'],
-  [/cd금리|kofr|머니마켓|mmf|단기채|단기통안|초단기|단기자금|금리액티브|sgov|\bbil\b|\bshv\b/i, 'cash'],
+  // 채권혼합50 같은 상품은 주식이 절반 — 채권보다 먼저 확인
+  [/채권혼합|국채혼합|미국채혼합|주식혼합|\btdf|\btrf|자산배분|멀티에셋/i, 'balanced'],
+  [/cd\d*년?금리|kofr|sofr|머니마켓|mmf|단기채|단기통안|초단기|단기자금|단기(특수|금융|국공|은행)|전단채|통안채|금리액티브|금리플러스|달러선물|엔선물|sgov|\bbil\b|\bshv\b/i, 'cash'],
   [/30년|20년|장기채|장기국채|\btlt\b|\bedv\b|long[- ]term|20\+/i, 'bondLong'],
-  [/채권|국채|국고채|회사채|크레딧|bond|treasury|t-note|\bief\b|\bagg\b|\bbnd\b/i, 'bond'],
-  [/금현물|골드|금선물|\bgold\b|\bgld\b|\biau\b/i, 'gold'],
-  [/원유|은선물|구리|원자재|천연가스|농산물|commodit|\boil\b/i, 'commodity'],
-  [/리츠|reit|부동산|인프라/i, 'reits'],
+  [/채권|국채|국고채|회사채|금융채|은행채|특수채|국공채|물가채|크레딧|하이일드|bond|treasury|t-note|\bief\b|\bagg\b|\bbnd\b/i, 'bond'],
+  [/금현물|국제금|금액티브|골드|금선물|\bgold\b|\bgld\b|\biau\b/i, 'gold'],
+  // 원유·천연가스 '기업' ETF는 원자재가 아니라 에너지 주식
+  [
+    /원유|은선물|은현물|은액티브|구리|원자재|천연가스|농산물|콩선물|팔라듐|백금|탄소배출권|commodit|\boil\b|silver/i,
+    (n) => (/기업|밸류체인|인프라/.test(n) ? (US.test(n) ? 'usLarge' : 'equity') : 'commodity'),
+  ],
+  // '인프라'는 넣지 않음 — AI전력인프라 같은 주식형 ETF가 리츠로 잡히지 않게
+  [/리츠|reit|부동산|real estate|\bvnq\b/i, 'reits'],
   [/반도체|semicon|\bsox|\bsmh\b/i, 'semis'],
-  [/배당|dividend|schd|\bvym\b|dgro|고배당/i, (n) => (US.test(n) ? 'usDividend' : 'krDividend')],
-  [/나스닥|nasdaq|qqq|테크|tech|빅테크|fang/i, 'usTech'],
+  // '코리아배당다우존스'처럼 '다우'가 들어가도 한국이면 국내 배당
+  [
+    /배당|dividend|schd|\bvym\b|dgro|고배당/i,
+    (n) =>
+      /미국/.test(n)
+        ? 'usDividend'
+        : KOREA.test(n)
+          ? 'krDividend'
+          : FOREIGN.test(n)
+            ? 'intl'
+            : US.test(n)
+              ? 'usDividend'
+              : 'krDividend',
+  ],
+  // 차이나테크·코리아테크는 미국 기술주가 아님
+  [
+    /나스닥|nasdaq|qqq|테크|tech|빅테크|fang|테슬라|엔비디아|구글|알파벳|마이크로소프트|애플|아마존|팔란티어|브로드컴/i,
+    (n) =>
+      /미국|나스닥|nasdaq/i.test(n)
+        ? 'usTech'
+        : FOREIGN.test(n)
+          ? 'intl'
+          : /코스닥/.test(n)
+            ? 'kosdaq'
+            : KOREA.test(n)
+              ? 'krSector'
+              : 'usTech',
+  ],
   [/코스닥|kosdaq/i, 'kosdaq'],
-  [/s&p|sp500|미국|total stock|\bvti\b|\bvoo\b|\bspy\b|\bivv\b|다우|dow/i, 'usLarge'],
-  [/전세계|글로벌|global|world|acwi|\bvt\b|선진국|developed/i, 'world'],
-  [/중국|차이나|china|인도|india|베트남|신흥|emerging|일본|japan|유럽|euro|대만|taiwan/i, 'intl'],
-  [/200|코스피|kospi|msci korea|krx ?300|코리아밸류업|밸류업/i, 'kospi'],
+  [/전세계|글로벌|global|world|acwi|\bvt\b|선진국|developed|토탈월드/i, 'world'],
+  [/s&p코리아|코리아로우볼/i, 'kospi'],
+  [/s&p|sp500|미국|total stock|\bvti\b|\bvoo\b|\bspy\b|\bivv\b|다우|dow|러셀|russell|select sector|버크셔|일라이릴리/i, 'usLarge'],
+  [FOREIGN, 'intl'],
+  [/international|ex[- ]us|\bvxus\b|\bvea\b|\befa\b/i, 'intl'],
+  // '200'은 숫자의 일부(러셀2000 등)가 아닐 때만
+  [/(^|\D)200(\D|$)|코스피|kospi|msci korea|krx ?300|코리아밸류업|밸류업/i, 'kospi'],
 ]
 
+/** 분류에 쓸 글자 — 국내 상장은 종목코드(예: 0072X0)의 영문이 레버리지(2X) 등으로 잘못 걸리지 않게 이름만 */
+export function classifyText(name: string, symbol: string) {
+  return /\.(KS|KQ)$/.test(symbol) ? name : `${name} ${symbol}`
+}
+
 export function assetClassOf(name: string, symbol: string): AssetClassId {
-  const text = `${name} ${symbol}`
+  const text = classifyText(name, symbol)
   for (const [re, cls] of RULES) {
     if (re.test(text)) return typeof cls === 'function' ? cls(text) : cls
   }
