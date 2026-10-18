@@ -127,13 +127,37 @@ export function classifyText(name: string, symbol: string) {
   return /\.(KS|KQ)$/.test(symbol) ? name : `${name} ${symbol}`
 }
 
-export function assetClassOf(name: string, symbol: string): AssetClassId {
+/**
+ * 네이버 금융 ETF 분류 코드 — 1 국내 시장지수, 2 국내 업종·테마, 3 국내 파생, 4 해외 주식, 5 원자재, 6 채권, 7 기타
+ * 네이버 분류에도 오류가 있어서(예: 토탈월드스탁이 국내 지수), 이름으로 확실히 정하지 못한
+ * 경우(국내 업종·기타 주식·'글로벌')에만 공식 분류를 따릅니다.
+ */
+function checkWithNaver(cls: AssetClassId, tab: number | undefined, text: string): AssetClassId {
+  const weak = cls === 'krSector' || cls === 'equity' || cls === 'world'
+  const named = FOREIGN.test(text) || /미국|월드|world/i.test(text)
+  switch (tab) {
+    case 1:
+    case 2:
+      return cls === 'world' && !named ? 'krSector' : cls
+    case 4:
+      return ['kospi', 'kosdaq', 'krSector', 'krDividend'].includes(cls) ? 'world' : cls
+    case 5:
+      return weak ? 'commodity' : cls
+    case 6:
+      return weak ? 'bond' : cls
+    default:
+      return cls
+  }
+}
+
+/** @param tab 국내 ETF의 네이버 분류 코드 (있으면 이름 규칙 결과를 바로잡는 데 사용) */
+export function assetClassOf(name: string, symbol: string, tab?: number): AssetClassId {
   const text = classifyText(name, symbol)
   for (const [re, cls] of RULES) {
-    if (re.test(text)) return typeof cls === 'function' ? cls(text) : cls
+    if (re.test(text)) return checkWithNaver(typeof cls === 'function' ? cls(text) : cls, tab, text)
   }
   // 국내 상장인데 규칙에 안 걸리면 업종·테마형으로 간주
-  return /\.(KS|KQ)$/.test(symbol) ? 'krSector' : 'equity'
+  return checkWithNaver(/\.(KS|KQ)$/.test(symbol) ? 'krSector' : 'equity', tab, text)
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(Math.max(n, lo), hi)
@@ -162,7 +186,7 @@ export function expectedBreakdown(
   h: Pick<Holding, 'name' | 'symbol' | 'currentPrice' | 'stats'>,
   reinvest: boolean,
 ): ExpectedBreakdown {
-  const assetClass = assetClassOf(h.name, h.symbol)
+  const assetClass = assetClassOf(h.name, h.symbol, h.stats?.tab)
   const s = h.stats
   const etfYears = s?.years ?? 0
   const bench = benchmarks[assetClass]

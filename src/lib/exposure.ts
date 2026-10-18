@@ -180,7 +180,7 @@ export function portfolioExposure(holdings: Holding[]) {
   for (const h of holdings) {
     const v = holdingValue(h)
     if (v <= 0) continue
-    const cls = assetClassOf(h.name, h.symbol)
+    const cls = assetClassOf(h.name, h.symbol, h.stats?.tab)
     // 채권혼합·TDF 같은 혼합형은 주식 절반, 채권 절반으로 봄
     const stock = cls === 'balanced' ? v / 2 : v
     if (cls === 'balanced') {

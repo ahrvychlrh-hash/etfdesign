@@ -6,6 +6,12 @@ export function monthKey(d = new Date()) {
   return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
+/** 'YYYY-MM'의 한 달 전 */
+export function prevMonth(m: string) {
+  const [y, mo] = m.split('-').map(Number)
+  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`
+}
+
 export function monthLabel(key: string) {
   const [y, m] = key.split('-')
   return `${y}년 ${Number(m)}월`

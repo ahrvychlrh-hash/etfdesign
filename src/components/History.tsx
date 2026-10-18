@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import type { Holding, Reinvest, Snapshot } from '../lib/types'
 import { ICONS } from '../lib/characters'
 import { holdingValue } from '../lib/finance'
-import { monthKey, monthLabel, monthRows, realPrincipal, reinvestTotal, yearSummaries, type MonthRow } from '../lib/history'
+import { monthKey, monthLabel, monthRows, prevMonth, realPrincipal, reinvestTotal, yearSummaries, type MonthRow } from '../lib/history'
 import { pct, won, wonShort, wonAxis } from '../lib/format'
 import { MoneyInput } from './MoneyInput'
 import { MonthBars } from './MonthBars'
@@ -203,12 +203,6 @@ function RowTip({ row }: { row: MonthRow }) {
 }
 
 /* ---------------- 월별 표 + 지난 기록 입력 ---------------- */
-
-/** 'YYYY-MM'의 한 달 전 */
-function prevMonth(m: string) {
-  const [y, mo] = m.split('-').map(Number)
-  return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, '0')}`
-}
 
 function MonthTable({
   rows,

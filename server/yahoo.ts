@@ -294,6 +294,48 @@ export function searchEtf(query: string, type: 'etf' | 'crypto' = 'etf'): Promis
   })
 }
 
+/* ---------------- 월말 종가 ---------------- */
+
+/** 'YYYY-MM' 달의 마지막 거래일 종가 (원래 통화) — 데이터가 없으면 null */
+async function monthEndClose(sym: string, month: string): Promise<{ close: number; currency: string } | null> {
+  const [y, m] = month.split('-').map(Number)
+  // 한국 시간 기준 그 달 1일 0시 ~ 다음 달 1일 0시
+  const from = Date.UTC(y, m - 1, 1) / 1000 - 9 * 3600
+  const to = Date.UTC(y, m, 1) / 1000 - 9 * 3600
+  const j = await getJson(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?period1=${from}&period2=${to}&interval=1d`,
+  )
+  const r = j.chart?.result?.[0]
+  const ts: number[] = r?.timestamp ?? []
+  const close: (number | null)[] = r?.indicators?.quote?.[0]?.close ?? []
+  for (let i = ts.length - 1; i >= 0; i--) {
+    if (ts[i] < to && close[i] != null && close[i]! > 0) return { close: close[i]!, currency: r.meta?.currency ?? 'KRW' }
+  }
+  return null
+}
+
+/**
+ * 여러 종목의 'YYYY-MM' 월말 종가를 원화로 (같은 날 환율 적용).
+ * 금 현물(GOLD-G)은 금 선물 × 환율 ÷ 31.1g. 못 구한 종목은 null.
+ */
+export function getMonthEnd(symbols: string[], month: string): Promise<Record<string, number | null>> {
+  const syms = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].sort().slice(0, 40)
+  return cached(`me:${month}:${syms.join(',')}`, 24 * 3600_000, async () => {
+    const fx = await monthEndClose('KRW=X', month).catch(() => null)
+    const out: Record<string, number | null> = {}
+    await Promise.all(
+      syms.map(async (s) => {
+        const c = await monthEndClose(s === GOLD_GRAM ? 'GC=F' : s, month).catch(() => null)
+        if (!c) return void (out[s] = null)
+        const toKrw = c.currency === 'USD' ? fx?.close : c.currency === 'KRW' ? 1 : undefined
+        if (!toKrw) return void (out[s] = null)
+        out[s] = s === GOLD_GRAM ? (c.close * toKrw) / GRAMS_PER_TROY_OUNCE : c.close * toKrw
+      }),
+    )
+    return out
+  })
+}
+
 /** URL 경로·쿼리로 API 요청을 처리합니다. (dev 서버·Vercel 공통) */
 export async function handleApi(url: URL): Promise<{ status: number; body: unknown }> {
   try {
@@ -311,6 +353,11 @@ export async function handleApi(url: URL): Promise<{ status: number; body: unkno
     }
     if (url.pathname.endsWith('/etfs')) {
       return { status: 200, body: await krEtfList() }
+    }
+    if (url.pathname.endsWith('/monthend')) {
+      const month = url.searchParams.get('month') ?? ''
+      if (!/^\d{4}-\d{2}$/.test(month)) return { status: 400, body: { error: 'month 필요 (YYYY-MM)' } }
+      return { status: 200, body: await getMonthEnd((url.searchParams.get('symbols') ?? '').split(','), month) }
     }
     return { status: 404, body: { error: 'not found' } }
   } catch (e) {

@@ -1,4 +1,4 @@
-import type { Holding } from './types'
+import type { AccountKind, Holding } from './types'
 import { expectedBreakdown } from './expected'
 
 export interface ProjectionPoint {
@@ -121,6 +121,21 @@ export function annualDividend(holdings: Holding[]) {
 
 /** 배당소득세 15.4% (일반 계좌 기준) */
 export const DIVIDEND_TAX = 0.154
+
+/**
+ * 계좌 종류별로 배당을 받을 때 바로 떼는 세금 비율.
+ * ISA는 비과세 한도 안이면 0, 연금저축·IRP는 과세이연(연금으로 받을 때 3.3~5.5%)이라 지금은 0.
+ */
+export function dividendTaxRate(kind: AccountKind) {
+  return kind === 'ISA' || kind === '연금저축' || kind === 'IRP' ? 0 : DIVIDEND_TAX
+}
+
+/** 계좌 종류별 세금 안내 */
+export function dividendTaxNote(kind: AccountKind) {
+  if (kind === 'ISA') return '비과세 (연 200만원 넘으면 만기 때 9.9%)'
+  if (kind === '연금저축' || kind === 'IRP') return '과세이연 (연금 받을 때 3.3~5.5%)'
+  return '배당소득세 15.4%'
+}
 
 /** 월별 예상 배당금(원, 세전) — 최근 12개월 지급 월에 고르게 나눔 */
 export function monthlyDividends(holdings: Holding[]) {

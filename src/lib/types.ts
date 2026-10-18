@@ -24,6 +24,8 @@ export interface EtfStats {
   divPerShare: number
   /** 최근 12개월 배당 지급 월 */
   payMonths: number[]
+  /** 국내 ETF의 네이버 분류 코드 (자산군 판별 보조) */
+  tab?: number
   updatedAt: string
 }
 
@@ -105,6 +107,8 @@ export interface Snapshot {
   at: string
   /** 직접 입력한 기록이면 자동으로 덮어쓰지 않음 */
   manual?: boolean
+  /** 다음 달에 월말 종가로 다시 계산했거나 확인을 마친 기록 */
+  closed?: boolean
 }
 
 export interface Reinvest {

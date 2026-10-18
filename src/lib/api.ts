@@ -32,6 +32,7 @@ export async function fetchQuote(symbol: string): Promise<Quote> {
     years: number
     div12m: number
     payMonths: number[]
+    tab?: number
   }>(`/api/quote?symbol=${encodeURIComponent(symbol)}`)
   return {
     symbol: q.symbol,
@@ -46,9 +47,17 @@ export async function fetchQuote(symbol: string): Promise<Quote> {
       years: q.years,
       divPerShare: q.div12m * q.fx,
       payMonths: q.payMonths,
+      tab: q.tab,
       updatedAt: new Date().toISOString(),
     },
   }
+}
+
+/** 'YYYY-MM' 월말 종가(원화) — 못 구한 종목은 null */
+export function fetchMonthEnd(month: string, symbols: string[]) {
+  return get<Record<string, number | null>>(
+    `/api/monthend?month=${month}&symbols=${encodeURIComponent([...new Set(symbols)].sort().join(','))}`,
+  )
 }
 
 export function searchRemote(q: string, type: 'etf' | 'crypto' = 'etf') {

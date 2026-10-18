@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Account, AppState, Holding, Profile } from './lib/types'
-import { clearState, emptyState, loadState, saveState } from './lib/storage'
-import { fetchQuote, loadBenchmarks } from './lib/api'
+import { backupNow, clearState, emptyState, loadState, requestPersistentStorage, saveState } from './lib/storage'
+import { fetchMonthEnd, fetchQuote, loadBenchmarks } from './lib/api'
 import { setBenchmarks } from './lib/expected'
 import { computePlan, cryptoTotal, DEFAULT_RATE, splitReserve } from './lib/plan'
 import { holdingValue } from './lib/finance'
-import { monthKey, realPrincipal } from './lib/history'
+import { monthKey, prevMonth, realPrincipal } from './lib/history'
 import { Onboarding } from './components/Onboarding'
 import { Home } from './components/Home'
 import { Holdings } from './components/Holdings'
@@ -33,6 +33,8 @@ export default function App() {
   cryptosRef.current = state.cryptos
 
   useEffect(() => saveState(state), [state])
+  // 브라우저가 저장 공간을 정리할 때 이 앱 데이터는 지우지 않도록 요청
+  useEffect(() => requestPersistentStorage(), [])
 
   // 이번 달 자산을 기록 — 그 달에 마지막으로 기록된 값이 월말 자산이 됨
   useEffect(() => {
@@ -51,6 +53,36 @@ export default function App() {
       snapshots: { ...s.snapshots, [key]: { value, principal, at: new Date().toISOString() } },
     }))
   }, [state.profile, state.holdings, state.accounts, state.reinvests, state.snapshots])
+
+  // 지난달 기록이 월말 전에 저장된 것이면, 앱을 처음 열 때 지난달 마지막 거래일 종가로 다시 계산
+  // (그 사이 매수·매도로 원금이 바뀌었으면 수량을 알 수 없어서 그대로 둠)
+  const monthEndChecked = useRef(false)
+  useEffect(() => {
+    if (!state.profile || monthEndChecked.current) return
+    monthEndChecked.current = true
+    const month = prevMonth(monthKey())
+    const snap = state.snapshots[month]
+    if (!snap || snap.manual || snap.closed) return
+    const close = (patch: Partial<typeof snap>) =>
+      setState((s) => ({ ...s, snapshots: { ...s.snapshots, [month]: { ...s.snapshots[month], ...patch, closed: true } } }))
+    const { investHoldings } = splitReserve(state.holdings, state.accounts)
+    if (Math.round(realPrincipal(investHoldings, state.reinvests)) !== Math.round(snap.principal)) return close({})
+    const auto = investHoldings.filter((h) => h.priceMode === 'auto')
+    fetchMonthEnd(month, auto.map((h) => h.symbol))
+      .then((prices) => {
+        // 한 종목이라도 종가를 못 구하면 보정하지 않음
+        if (auto.some((h) => !prices[h.symbol.toUpperCase()])) return close({})
+        const value = investHoldings.reduce(
+          (sum, h) => sum + h.quantity * (h.priceMode === 'auto' ? (prices[h.symbol.toUpperCase()] as number) : h.currentPrice),
+          0,
+        )
+        close({ value })
+      })
+      .catch(() => {
+        // 네트워크 오류면 다음에 다시 시도
+        monthEndChecked.current = false
+      })
+  }, [state.profile, state.snapshots, state.holdings, state.accounts, state.reinvests])
 
   /** 현재가·과거 성과·배당을 다시 불러옵니다. (코인 현물 시세 포함) */
   const refresh = useCallback(async (force: boolean) => {
@@ -217,7 +249,10 @@ export default function App() {
               profile={profile}
               plan={plan}
               onEdit={() => setEditingProfile(true)}
+              state={state}
+              onImport={(next) => setState(next)}
               onReset={() => {
+                backupNow(state, '초기화 전')
                 clearState()
                 setState(emptyState())
                 setTab('home')

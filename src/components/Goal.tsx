@@ -1,18 +1,21 @@
-import type { Profile } from '../lib/types'
+import type { AppState, Profile } from '../lib/types'
 import type { Plan } from '../lib/plan'
 import { ICONS } from '../lib/characters'
 import { Mascot } from './Mascot'
 import { duration, wonShort } from '../lib/format'
 import { ConfirmButton } from './ui'
+import { BackupSection } from './BackupSection'
 
 interface Props {
   profile: Profile
   plan: Plan
   onEdit: () => void
   onReset: () => void
+  state: AppState
+  onImport: (s: AppState) => void
 }
 
-export function Goal({ profile, plan, onEdit, onReset }: Props) {
+export function Goal({ profile, plan, onEdit, onReset, state, onImport }: Props) {
   return (
     <>
       <header className="hero hero--goal">
@@ -46,16 +49,18 @@ export function Goal({ profile, plan, onEdit, onReset }: Props) {
         />
       </div>
 
+      <BackupSection state={state} onImport={onImport} />
+
       <section className="section">
         <div className="card card--plain">
           <p className="footnote">
-            입력한 정보는 이 기기의 브라우저에만 저장돼요. 국내 ETF 시세는 네이버 금융, 과거 성과·배당·해외 시세는 Yahoo
+            국내 ETF 시세는 네이버 금융, 과거 성과·배당·해외 시세는 Yahoo
             Finance 기준이며 실제와 차이가 있을 수 있어요. 아이콘: Microsoft Fluent Emoji.
           </p>
           <ConfirmButton
             className="link link--danger"
             label="데이터 초기화"
-            question="모든 데이터를 지울까요?"
+            question="모든 데이터를 지울까요? (자동 백업은 남아요)"
             confirmLabel="초기화"
             onConfirm={onReset}
           />

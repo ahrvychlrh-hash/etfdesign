@@ -2772,3 +2772,71 @@ b {
 .hist-summary small {
   font-size: 10.5px;
 }
+/* 데이터 백업 */
+.backup__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.backup__confirm {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--field);
+  font-size: 13px;
+}
+.backup__confirm .row-end {
+  margin-top: 8px;
+}
+.backup__list {
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.backup__list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.backup__list .confirm__q {
+  display: none;
+}
+/* 내 배당금: 계좌별 배당 */
+.div-acc {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.div-acc__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.div-acc ul {
+  display: flex;
+  flex-direction: column;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.div-acc li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+.div-acc .list__main b {
+  font-size: 14px;
+}
+.div-acc .list__main .muted {
+  font-size: 11px;
+}
+.div-acc .list__num .muted {
+  font-size: 11px;
+}

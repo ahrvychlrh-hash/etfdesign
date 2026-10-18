@@ -8,7 +8,8 @@ import { colorMap } from '../lib/plan'
 import { ACCOUNT_ICONS, ICONS } from '../lib/characters'
 import {
   avgPrice,
-  DIVIDEND_TAX,
+  dividendTaxNote,
+  dividendTaxRate,
   expectedReturn,
   holdingDividend,
   holdingValue,
@@ -99,7 +100,7 @@ export function Holdings(props: Props) {
 
       <AccountShare accounts={accounts} holdings={holdings} />
 
-      {holdings.length > 0 && <Dividends holdings={holdings} colors={colors} />}
+      {holdings.length > 0 && <Dividends holdings={holdings} accounts={accounts} colors={colors} />}
 
       <Section
         title="계좌별 ETF"
@@ -244,10 +245,26 @@ function HoldingCard({
   )
 }
 
-function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<string, string> }) {
+function Dividends({ holdings, accounts, colors }: { holdings: Holding[]; accounts: Account[]; colors: Map<string, string> }) {
   // 종목별 배당 목록은 길어서 '자세히 보기'를 눌러야 보여줌
   const [open, setOpen] = useState(false)
+  const kindOf = new Map(accounts.map((a) => [a.id, a.kind]))
+  // 세후는 계좌 종류별 세율로 (ISA·연금은 지금 떼는 세금 없음)
+  const afterTax = (h: Holding) => holdingDividend(h) * (1 - dividendTaxRate(kindOf.get(h.accountId) ?? '일반'))
   const year = holdings.reduce((s, h) => s + holdingDividend(h), 0)
+  const yearAfter = holdings.reduce((s, h) => s + afterTax(h), 0)
+  // 계좌별 배당
+  const byAccount = accounts
+    .map((a) => {
+      const list = holdings.filter((h) => h.accountId === a.id)
+      return {
+        account: a,
+        pre: list.reduce((s, h) => s + holdingDividend(h), 0),
+        post: list.reduce((s, h) => s + afterTax(h), 0),
+      }
+    })
+    .filter((r) => r.pre > 0)
+    .sort((x, y) => y.pre - x.pre)
   const months = monthlyDividends(holdings)
   const max = Math.max(...months, 1)
   const payers = holdings.filter((h) => holdingDividend(h) > 0).sort((a, b) => holdingDividend(b) - holdingDividend(a))
@@ -264,8 +281,8 @@ function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<stri
         </div>
         <div className="div__grid">
           <span>
-            <span className="muted">세후 (15.4%)</span>
-            <b>{won(Math.round((year * (1 - DIVIDEND_TAX)) / 100) * 100)}</b>
+            <span className="muted">세후 (계좌별)</span>
+            <b>{won(Math.round(yearAfter / 100) * 100)}</b>
           </span>
           <span>
             <span className="muted">월 평균</span>
@@ -273,7 +290,7 @@ function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<stri
           </span>
           <span>
             <span className="muted">세후 월 평균</span>
-            <b>{won(Math.round((year * (1 - DIVIDEND_TAX)) / 12 / 100) * 100)}</b>
+            <b>{won(Math.round(yearAfter / 12 / 100) * 100)}</b>
           </span>
         </div>
 
@@ -288,6 +305,28 @@ function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<stri
                 </div>
               ))}
             </div>
+            {byAccount.length > 0 && (
+              <div className="div-acc">
+                <span className="div-acc__title">계좌별 배당금 (연)</span>
+                <ul>
+                  {byAccount.map(({ account, pre, post }) => (
+                    <li key={account.id}>
+                      <img src={ACCOUNT_ICONS[account.kind] ?? ICONS.briefcase} alt="" className="icon3d icon3d--xs" />
+                      <span className="list__main">
+                        <b>{account.name}</b>
+                        <span className="muted">{dividendTaxNote(account.kind)}</span>
+                      </span>
+                      <span className="list__num">
+                        <b>{wonShort(pre)}</b>
+                        <span className="muted">
+                          세후 {wonShort(post)} · 월 {wonShort(post / 12)}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {open && (
               <ul className="div__list">
                 {payers.map((h) => (
@@ -307,7 +346,10 @@ function Dividends({ holdings, colors }: { holdings: Holding[]; colors: Map<stri
         ) : (
           <p className="hint hint--sm">보유 ETF 중 최근 12개월 동안 배당을 준 종목이 없어요. (TR·성장형 ETF는 배당을 자동 재투자해요)</p>
         )}
-        <p className="hint hint--sm">최근 12개월 실제 지급액 × 보유 수량 기준이에요. ISA·연금 계좌는 세금이 다르게 적용돼요.</p>
+        <p className="hint hint--sm">
+          최근 12개월 실제 지급액 × 보유 수량 기준이에요. ISA는 연 200만원(일반형)까지 비과세로, 연금저축·IRP는 지금은 세금을 떼지
+          않는 것으로 계산했어요.
+        </p>
       </div>
     </Section>
   )
