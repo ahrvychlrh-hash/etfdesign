@@ -2688,7 +2688,7 @@ b {
 }
 .sim__row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) 76px;
+  grid-template-columns: 64px minmax(0, 1fr) 96px;
   align-items: center;
   gap: 10px;
   font-size: 13px;

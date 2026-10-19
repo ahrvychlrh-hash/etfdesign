@@ -12,6 +12,7 @@ interface Props {
 }
 
 interface Sim {
+  target: number
   monthly: number
   rate: number
   years: number
@@ -23,15 +24,17 @@ function defaultYears(months: number | null) {
 }
 
 /**
- * 자산 성장 예측 — 월 투자금·수익률·기간을 바꿔 보며 그래프가 어떻게 달라지는지 확인하고,
+ * 자산 성장 예측 — 목표 금액·월 투자금·수익률·기간을 바꿔 보며 그래프가 어떻게 달라지는지 확인하고,
  * '현재 기록으로'를 누르면 내 실제 설정으로 돌아갑니다.
  */
 export function GrowthSection({ profile, plan }: Props) {
-  const base: Sim = { monthly: profile.monthly, rate: Math.round(plan.rate * 10) / 10, years: defaultYears(plan.months) }
+  const base: Sim = { target: profile.target, monthly: profile.monthly, rate: Math.round(plan.rate * 10) / 10, years: defaultYears(plan.months) }
   // null이면 현재 기록 그대로
   const [sim, setSim] = useState<Sim | null>(null)
   const s = sim ?? base
-  const changed = sim !== null && (sim.monthly !== base.monthly || sim.rate !== base.rate || sim.years !== base.years)
+  const changed =
+    sim !== null &&
+    (sim.target !== base.target || sim.monthly !== base.monthly || sim.rate !== base.rate || sim.years !== base.years)
   const set = (patch: Partial<Sim>) => setSim({ ...s, ...patch })
 
   // 투자 자산만 불어나고, 부동산·비상금·코인은 그대로 더해지는 고정값으로 봄
@@ -44,10 +47,12 @@ export function GrowthSection({ profile, plan }: Props) {
       })),
     [plan.etf.value, plan.fixed, s.monthly, s.rate, profile.age, s.years],
   )
-  const months = monthsToTarget(plan.etf.value, s.monthly, s.rate, profile.target - plan.fixed)
-  const by60 = requiredMonthly(plan.etf.value, s.rate, profile.target - plan.fixed, Math.max((60 - profile.age) * 12, 1))
+  const months = monthsToTarget(plan.etf.value, s.monthly, s.rate, s.target - plan.fixed)
+  const by60 = requiredMonthly(plan.etf.value, s.rate, s.target - plan.fixed, Math.max((60 - profile.age) * 12, 1))
   // 월 투자금 막대 범위: 지금의 3배 또는 500만원 중 큰 쪽까지
   const monthlyMax = Math.max(Math.ceil((profile.monthly * 3) / 100_000) * 100_000, 5_000_000)
+  // 목표 금액 막대 범위: 1억 ~ 지금 목표의 3배 또는 30억 중 큰 쪽 (1천만원 단위)
+  const targetMax = Math.max(Math.ceil((profile.target * 3) / 10_000_000) * 10_000_000, 3_000_000_000)
 
   return (
     <Section
@@ -62,9 +67,9 @@ export function GrowthSection({ profile, plan }: Props) {
     >
       <div className="card">
         <p className="card__note">
-          매달 {wonShort(s.monthly)} · 연 {s.rate.toFixed(1)}% · {s.years}년 {changed ? '(바꿔 보는 중)' : '가정'}
+          목표 {wonShort(s.target)} · 매달 {wonShort(s.monthly)} · 연 {s.rate.toFixed(1)}% · {s.years}년 {changed ? '(바꿔 보는 중)' : '가정'}
         </p>
-        <ProjectionChart points={points} target={profile.target} />
+        <ProjectionChart points={points} target={s.target} />
         <p className={`sim-result ${changed ? 'is-changed' : ''}`}>
           {months === null
             ? '이 조건으로는 50년 안에 목표에 닿지 않아요.'
@@ -74,6 +79,15 @@ export function GrowthSection({ profile, plan }: Props) {
         </p>
 
         <div className="sim">
+          <SimSlider
+            label="목표 금액"
+            value={s.target}
+            text={wonShort(s.target)}
+            min={100_000_000}
+            max={targetMax}
+            step={10_000_000}
+            onChange={(v) => set({ target: v })}
+          />
           <SimSlider
             label="월 투자금"
             value={s.monthly}
