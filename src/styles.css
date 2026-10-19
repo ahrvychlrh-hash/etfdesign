@@ -2648,11 +2648,19 @@ b {
   font-weight: 700;
   text-align: center;
 }
-/* 리밸런싱: 꾹 누르면 종목명 전체 */
+/* 리밸런싱: 한 번 누르면 종목명 전체 */
 .reb-name {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 보유 ETF 카드: 긴 종목명은 자르지 않고 두 줄까지 */
+.holding .list__main b {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 .reb-name.is-full .list__main b,
 .reb-name.is-full .list__main .muted {

@@ -54,7 +54,8 @@ export function MonthBars({ bars, format, tooltip, height = 190, line }: Props) 
   const slot = innerW / Math.max(bars.length, 1)
   const barW = Math.max(Math.min(slot * 0.62, 26), 3)
   const x = (i: number) => PAD.left + slot * i + slot / 2
-  const ticks = min < 0 ? [max, 0, min] : [max, max / 2, 0]
+  // 모두 마이너스면 0이 두 번 나오지 않게 0·중간·최저로
+  const ticks = min < 0 ? (max > 0 ? [max, 0, min] : [0, min / 2, min]) : [max, max / 2, 0]
   // 월이 많으면 1·4·7·10월만 표시
   const showLabel = (m: number) => bars.length <= 8 || [1, 4, 7, 10].includes(m)
   const hb = hover != null ? bars[hover] : null

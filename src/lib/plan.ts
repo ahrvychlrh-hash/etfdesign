@@ -1,5 +1,6 @@
 import { isReserve, type Account, type CryptoAsset, type Holding, type Profile, type RealEstate } from './types'
 import { annualDividend, holdingValue, monthsToTarget, portfolioReturn, portfolioSummary } from './finance'
+import { brandColor } from './presets'
 
 /** 보유 ETF가 없을 때 예측에 쓰는 기본 연 수익률(%) */
 export const DEFAULT_RATE = 7
@@ -57,11 +58,7 @@ export function computePlan(profile: Profile, holdings: Holding[], realEstates: 
 
 export type Plan = ReturnType<typeof computePlan>
 
-/** 비중 표시용 색 — 추가 순서로 고정해 정렬이 바뀌어도 같은 종목은 같은 색 */
-export const SERIES = ['#3d5afe', '#ff7a45', '#1baf7a', '#f5a400', '#e87ba4', '#008300', '#7b5cff', '#e34948']
-
+/** 종목 색 — ETF 운용사(브랜드)별로 같은 색 (KODEX 파랑, TIGER 주황 등) */
 export function colorMap(holdings: Holding[]) {
-  const m = new Map<string, string>()
-  holdings.forEach((h, i) => m.set(h.id, SERIES[i] ?? '#b3b8c7'))
-  return m
+  return new Map(holdings.map((h) => [h.id, brandColor(h)]))
 }

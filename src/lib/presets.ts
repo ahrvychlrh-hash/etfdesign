@@ -147,3 +147,36 @@ export function searchCrypto(q: string): EtfPreset[] {
     return words.every((w) => hay.includes(w))
   })
 }
+
+/** ETF 운용사(브랜드)별 색 — 이름 앞부분(국내)이나 운용사 이름(해외)으로 판별 */
+const BRANDS: [RegExp, string][] = [
+  [/^kodex/i, '#2563eb'], // 삼성 — 파랑
+  [/^tiger/i, '#f97316'], // 미래에셋 — 주황
+  [/^ace/i, '#dc2626'], // 한국투자 — 빨강
+  [/^rise|^kbstar/i, '#b7791f'], // KB — 황토
+  [/^sol/i, '#0ea5e9'], // 신한 — 하늘
+  [/^plus|^arirang/i, '#e11d74'], // 한화 — 분홍
+  [/^hanaro/i, '#16a34a'], // NH — 초록
+  [/^kiwoom|^kosef/i, '#a21caf'], // 키움 — 자주
+  [/^time/i, '#7c3aed'], // 타임폴리오 — 보라
+  [/^1q/i, '#0d9488'], // 하나 — 청록
+  [/^koact/i, '#1e3a8a'], // 삼성액티브 — 남색
+  [/^won/i, '#0369a1'], // 우리 — 짙은 하늘
+  [/vanguard/i, '#9b1c1c'], // 버건디
+  [/ishares/i, '#1f2937'], // 검정
+  [/spdr|select sector/i, '#4d7c0f'], // 올리브
+  [/schwab/i, '#00a0df'], // 하늘
+  [/invesco/i, '#4338ca'], // 인디고
+  [/jpmorgan/i, '#78350f'], // 갈색
+  [/global x/i, '#0891b2'], // 청록
+  [/proshares/i, '#b45309'], // 호박
+]
+
+/** 금 현물·기타 운용사 */
+const OTHER_BRAND = '#94a3b8'
+
+export function brandColor(h: { symbol: string; name: string }) {
+  if (h.symbol === GOLD_GRAM) return '#d4a017'
+  const name = h.name.trim()
+  return BRANDS.find(([re]) => re.test(name))?.[1] ?? OTHER_BRAND
+}

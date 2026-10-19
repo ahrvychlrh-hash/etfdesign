@@ -19,9 +19,12 @@ export function wonShort(n: number) {
 
 /** 차트 축용 아주 짧은 표기 */
 export function wonAxis(n: number) {
-  if (n >= 1e8) return `${+(n / 1e8).toFixed(1)}억`
-  if (n >= 1e4) return `${nf.format(Math.round(n / 1e4))}만`
-  return nf.format(n)
+  // 마이너스도 플러스와 같은 단위(억·만)로
+  const sign = n < 0 ? '-' : ''
+  const a = Math.abs(n)
+  if (a >= 1e8) return `${sign}${+(a / 1e8).toFixed(1)}억`
+  if (a >= 1e4) return `${sign}${nf.format(Math.round(a / 1e4))}만`
+  return `${sign}${nf.format(Math.round(a))}`
 }
 
 export function pct(n: number, digits = 1) {
