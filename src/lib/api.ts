@@ -33,6 +33,7 @@ export async function fetchQuote(symbol: string): Promise<Quote> {
     div12m: number
     payMonths: number[]
     tab?: number
+    prevClose: number | null
   }>(`/api/quote?symbol=${encodeURIComponent(symbol)}`)
   return {
     symbol: q.symbol,
@@ -48,6 +49,7 @@ export async function fetchQuote(symbol: string): Promise<Quote> {
       divPerShare: q.div12m * q.fx,
       payMonths: q.payMonths,
       tab: q.tab,
+      prevClose: q.prevClose ?? undefined,
       updatedAt: new Date().toISOString(),
     },
   }

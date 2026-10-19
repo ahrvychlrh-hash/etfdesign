@@ -14,6 +14,9 @@ interface Props {
 
 const valueOf = (c: CryptoAsset) => c.quantity * c.price
 const formatCoinQty = (n: number) => n.toLocaleString('ko-KR', { maximumFractionDigits: 8 })
+/** 코인 1개 가격 — 100원 미만인 코인은 소수점까지 */
+const coinPrice = (p: number) =>
+  p >= 100 ? won(p) : `${p.toLocaleString('ko-KR', { maximumSignificantDigits: 4 })}원`
 
 /** 코인 현물 — 부동산처럼 총자산에는 더하지만 수익률·월별 기록·리밸런싱에서는 빠집니다. 평가금 = 보유 수량 × 현재가 */
 export function CryptoSection({ items, onSave, onDelete }: Props) {
@@ -59,7 +62,10 @@ export function CryptoSection({ items, onSave, onDelete }: Props) {
                   {displayTicker(c.symbol)} · {formatCoinQty(c.quantity)}개
                 </span>
               </span>
-              <b>{wonShort(valueOf(c))}</b>
+              <span className="list__num">
+                <b>{wonShort(valueOf(c))}</b>
+                <span className="muted">현재가 {coinPrice(c.price)}</span>
+              </span>
               <span className="chev">›</span>
             </button>
           ),

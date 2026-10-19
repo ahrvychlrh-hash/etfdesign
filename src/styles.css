@@ -2848,3 +2848,20 @@ b {
 .div-acc .list__num .muted {
   font-size: 11px;
 }
+/* 계좌 줄 오른쪽: 총 수익률 · 오늘 수익률 */
+.account__rates {
+  align-items: flex-end;
+  gap: 1px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.account__rates b {
+  font-size: 13px;
+}
+/* 그래프: 꾹 눌러도 글자 선택·복사 메뉴가 뜨지 않게 */
+.chart {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}

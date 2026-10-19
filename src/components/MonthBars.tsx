@@ -29,7 +29,10 @@ const LINE_COLOR = '#5b6478'
 export function MonthBars({ bars, format, tooltip, height = 190, line }: Props) {
   const wrap = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(320)
+  // 마우스를 올린 막대(컴퓨터) / 터치로 고정한 막대(휴대폰)
   const [hover, setHover] = useState<number | null>(null)
+  const [pinned, setPinned] = useState<number | null>(null)
+  const shown = pinned ?? hover
 
   useEffect(() => {
     const el = wrap.current
@@ -38,6 +41,16 @@ export function MonthBars({ bars, format, tooltip, height = 190, line }: Props) 
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  // 고정된 상세 내용은 그래프 바깥을 누르면 닫힘
+  useEffect(() => {
+    if (pinned == null) return
+    const close = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) setPinned(null)
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [pinned])
 
   const padRight = line ? 48 : PAD.right
   // 선 값을 막대 단위로 바꾸는 비율 — 두 값의 최대 크기를 맞춤
@@ -58,7 +71,7 @@ export function MonthBars({ bars, format, tooltip, height = 190, line }: Props) 
   const ticks = min < 0 ? (max > 0 ? [max, 0, min] : [0, min / 2, min]) : [max, max / 2, 0]
   // 월이 많으면 1·4·7·10월만 표시
   const showLabel = (m: number) => bars.length <= 8 || [1, 4, 7, 10].includes(m)
-  const hb = hover != null ? bars[hover] : null
+  const hb = shown != null ? bars[shown] : null
 
   return (
     <div className="chart" ref={wrap}>
@@ -93,7 +106,7 @@ export function MonthBars({ bars, format, tooltip, height = 190, line }: Props) 
                 height={h}
                 rx={Math.min(4, barW / 2)}
                 fill={b.color ?? 'var(--series-1)'}
-                opacity={b.faded ? 0.45 : hover === null || hover === i ? 1 : 0.55}
+                opacity={b.faded ? 0.45 : shown === null || shown === i ? 1 : 0.55}
               />
               {showLabel(mm) && (
                 <text x={x(i)} y={height - PAD.bottom + 14} className="axis" textAnchor="middle">
@@ -118,7 +131,7 @@ export function MonthBars({ bars, format, tooltip, height = 190, line }: Props) 
               strokeLinejoin="round"
             />
             {lineAsBar.map((v, i) => (
-              <circle key={i} cx={x(i)} cy={y(v)} r={hover === i ? 4 : 2.5} fill="#fff" stroke={LINE_COLOR} strokeWidth={2} />
+              <circle key={i} cx={x(i)} cy={y(v)} r={shown === i ? 4 : 2.5} fill="#fff" stroke={LINE_COLOR} strokeWidth={2} />
             ))}
           </g>
         )}
@@ -131,14 +144,15 @@ export function MonthBars({ bars, format, tooltip, height = 190, line }: Props) 
             width={slot}
             height={innerH}
             fill="transparent"
-            onPointerEnter={() => setHover(i)}
-            onPointerDown={() => setHover(i)}
-            onPointerLeave={() => setHover(null)}
+            // 마우스는 올리면 보이고, 터치는 한 번 누르면 고정 (같은 막대를 다시 누르면 닫힘)
+            onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(i)}
+            onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}
+            onClick={() => setPinned((p) => (p === i ? null : i))}
           />
         ))}
       </svg>
-      {hb && hover != null && (
-        <div className="tooltip" style={{ left: Math.min(Math.max(x(hover), 90), width - 90), top: Math.max(y(Math.max(hb.value, 0)) - 8, 0) }}>
+      {hb && shown != null && (
+        <div className="tooltip" style={{ left: Math.min(Math.max(x(shown), 90), width - 90), top: Math.max(y(Math.max(hb.value, 0)) - 8, 0) }}>
           {tooltip(hb)}
         </div>
       )}

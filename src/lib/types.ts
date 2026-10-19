@@ -26,6 +26,8 @@ export interface EtfStats {
   payMonths: number[]
   /** 국내 ETF의 네이버 분류 코드 (자산군 판별 보조) */
   tab?: number
+  /** 원화 환산 전일 종가 — 오늘(최근 거래일) 등락 계산용 */
+  prevClose?: number
   updatedAt: string
 }
 

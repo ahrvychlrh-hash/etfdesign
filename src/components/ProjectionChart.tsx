@@ -31,6 +31,16 @@ export function ProjectionChart({ points, target }: Props) {
     return () => ro.disconnect()
   }, [])
 
+  // 떠 있는 상세 내용은 그래프 바깥을 누르면 닫힘
+  useEffect(() => {
+    if (hover === null) return
+    const close = (e: PointerEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setHover(null)
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [hover])
+
   const maxVal = niceMax(Math.max(target, ...points.map((p) => p.value)) * 1.05)
   const lastYear = points[points.length - 1].year
   const innerW = width - PAD.left - PAD.right
@@ -131,7 +141,8 @@ export function ProjectionChart({ points, target }: Props) {
           fill="transparent"
           onPointerMove={onMove}
           onPointerDown={onMove}
-          onPointerLeave={() => setHover(null)}
+          // 터치는 손을 떼도 상세가 남아 있고, 그래프 바깥을 누르면 닫힘
+          onPointerLeave={(e) => e.pointerType === 'mouse' && setHover(null)}
         />
       </svg>
       {hp && (

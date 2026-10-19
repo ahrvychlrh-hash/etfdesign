@@ -31,6 +31,8 @@ export interface QuoteResult {
   payMonths: number[]
   /** 네이버 ETF 분류 코드 (국내만) */
   tab?: number
+  /** 원화 환산 전일 종가 — 오늘(최근 거래일) 등락 계산용, 모르면 null */
+  prevClose: number | null
 }
 
 /** 국내 ETF 한 줄: [종목코드, 이름, 분류코드] */
@@ -65,6 +67,8 @@ interface NaverEtf {
   itemname: string
   etfTabCode: number
   nowVal: number
+  /** 전일 대비 (원) */
+  changeVal?: number
 }
 
 function naverList(): Promise<NaverEtf[]> {
@@ -83,6 +87,14 @@ export async function krEtfList(): Promise<KrEtfRow[]> {
 }
 
 /* ---------------- Yahoo: 과거 성과·배당 ---------------- */
+
+/** 최근 거래일의 전일 종가 (원래 통화) — 최근 일별 종가 중 마지막 바로 앞 */
+async function yahooPrevClose(sym: string): Promise<number | null> {
+  const j = await getJson(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=5d&interval=1d`)
+  const close: (number | null)[] = j.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []
+  const valid = close.filter((c): c is number => c != null && c > 0)
+  return valid.length >= 2 ? valid[valid.length - 2] : null
+}
 
 async function usdKrw(): Promise<number> {
   return cached('fx:USDKRW', 10 * 60_000, async () => {
@@ -164,7 +176,7 @@ export function getQuote(symbol: string): Promise<QuoteResult> {
   return cached(`q:${sym}`, 5 * 60_000, async () => {
     if (sym === GOLD_GRAM) {
       // 국제 금 선물(달러/온스) × 환율 ÷ 31.1g = 원화 1g 가격
-      const [hist, fx] = await Promise.all([yahooHistory('GC=F'), usdKrw()])
+      const [hist, fx, prev] = await Promise.all([yahooHistory('GC=F'), usdKrw(), yahooPrevClose('GC=F').catch(() => null)])
       const perGram = (hist.price * fx) / GRAMS_PER_TROY_OUNCE
       return {
         symbol: GOLD_GRAM,
@@ -178,6 +190,7 @@ export function getQuote(symbol: string): Promise<QuoteResult> {
         years: hist.years,
         div12m: 0,
         payMonths: [],
+        prevClose: prev ? (prev * fx) / GRAMS_PER_TROY_OUNCE : null,
       }
     }
 
@@ -202,10 +215,12 @@ export function getQuote(symbol: string): Promise<QuoteResult> {
         div12m: hist?.div12m ?? 0,
         payMonths: hist?.payMonths ?? [],
         tab: item?.etfTabCode,
+        // 네이버의 전일 대비로 전일 종가 계산
+        prevClose: item && item.changeVal != null ? item.nowVal - item.changeVal : null,
       }
     }
 
-    const hist = await yahooHistory(sym)
+    const [hist, prev] = await Promise.all([yahooHistory(sym), yahooPrevClose(sym).catch(() => null)])
     const fx = hist.currency === 'USD' ? await usdKrw() : 1
     return {
       symbol: sym,
@@ -219,6 +234,7 @@ export function getQuote(symbol: string): Promise<QuoteResult> {
       years: hist.years,
       div12m: hist.div12m,
       payMonths: hist.payMonths,
+      prevClose: prev ? prev * fx : null,
     }
   })
 }

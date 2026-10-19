@@ -8,6 +8,7 @@ import { colorMap } from '../lib/plan'
 import { ACCOUNT_ICONS, ICONS } from '../lib/characters'
 import {
   avgPrice,
+  dayChange,
   dividendTaxNote,
   dividendTaxRate,
   expectedReturn,
@@ -115,6 +116,8 @@ export function Holdings(props: Props) {
             const list = holdings.filter((h) => h.accountId === acc.id).sort((a, b) => holdingValue(b) - holdingValue(a))
             const sum = portfolioSummary(list)
             const rate = portfolioReturn(list, profile.reinvest)
+            // 오늘(최근 거래일) 전일 종가 대비 등락
+            const today = dayChange(list)
             // 빈 계좌는 접을 것이 없으니 추가 버튼만 바로 보여줌
             const expandable = list.length > 0 || isReserve(acc)
             const isOpen = !expandable || opened.has(acc.id)
@@ -141,12 +144,21 @@ export function Holdings(props: Props) {
                       {rate != null && ` · 기대 연 ${rate.toFixed(1)}%`}
                     </span>
                   </span>
-                  <span className="list__num">
-                    <span className={sum.gain > 0 ? 'tone-up' : sum.gain < 0 ? 'tone-down' : 'muted'}>
-                      {list.length ? pct(sum.gainPct) : ''}
-                    </span>
-                    {expandable && <span className="account__chev">{isOpen ? '▴' : '▾'}</span>}
+                  <span className="list__num account__rates">
+                    {list.length > 0 && (
+                      <span>
+                        <span className="muted">총 </span>
+                        <b className={tone(sum.gain)}>{pct(sum.gainPct)}</b>
+                      </span>
+                    )}
+                    {today && (
+                      <span>
+                        <span className="muted">오늘 </span>
+                        <b className={tone(today.amount)}>{pct(today.pct, 2)}</b>
+                      </span>
+                    )}
                   </span>
+                  {expandable && <span className="account__chev">{isOpen ? '▴' : '▾'}</span>}
                 </button>
                 {isOpen && isReserve(acc) && (
                   <button className="card card--btn cash-row" onClick={onManageAccounts}>
@@ -402,4 +414,9 @@ function AccountShare({ accounts, holdings }: { accounts: Account[]; holdings: H
       </div>
     </Section>
   )
+}
+
+/** 수익(+)은 빨강, 손실(−)은 파랑 */
+function tone(v: number) {
+  return v > 0 ? 'tone-up' : v < 0 ? 'tone-down' : 'muted'
 }

@@ -149,6 +149,22 @@ export function monthlyDividends(holdings: Holding[]) {
   return months
 }
 
+/**
+ * 오늘(최근 거래일) 등락 — 전일 종가 대비. 시세가 자동 반영되는 종목만 계산하고,
+ * 전일 종가를 아는 종목이 하나도 없으면 null.
+ */
+export function dayChange(holdings: Holding[]) {
+  let now = 0
+  let prev = 0
+  for (const h of holdings) {
+    const p = h.stats?.prevClose
+    if (h.priceMode !== 'auto' || !p) continue
+    now += h.quantity * h.currentPrice
+    prev += h.quantity * p
+  }
+  return prev > 0 ? { amount: now - prev, pct: ((now - prev) / prev) * 100 } : null
+}
+
 export function portfolioSummary(holdings: Holding[]) {
   const value = holdings.reduce((s, h) => s + holdingValue(h), 0)
   const cost = holdings.reduce((s, h) => s + h.invested, 0)
