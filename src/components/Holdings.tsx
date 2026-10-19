@@ -146,15 +146,15 @@ export function Holdings(props: Props) {
                   </span>
                   <span className="list__num account__rates">
                     {list.length > 0 && (
-                      <span>
+                      <span className="rate-total">
                         <span className="muted">총 </span>
                         <b className={tone(sum.gain)}>{pct(sum.gainPct)}</b>
                       </span>
                     )}
                     {today && (
-                      <span>
+                      <span className="rate-today">
                         <span className="muted">오늘 </span>
-                        <b className={tone(today.amount)}>{pct(today.pct, 2)}</b>
+                        <span className={tone(today.amount)}>{pct(today.pct, 2)}</span>
                       </span>
                     )}
                   </span>
@@ -241,12 +241,12 @@ function HoldingCard({
         </span>
         <span className="list__num">
           <b>{wonShort(v)}</b>
-          <span className="holding__rate">
+          <span className="rate-total">
             <span className="muted">총 </span>
-            <span className={tone(r)}>{pct(r)}</span>
+            <b className={tone(r)}>{pct(r)}</b>
           </span>
           {today && (
-            <span className="holding__rate">
+            <span className="rate-today">
               <span className="muted">오늘 </span>
               <span className={tone(today.amount)}>{pct(today.pct, 2)}</span>
             </span>

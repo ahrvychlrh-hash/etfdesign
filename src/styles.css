@@ -2855,9 +2855,6 @@ b {
   font-size: 12px;
   white-space: nowrap;
 }
-.account__rates b {
-  font-size: 13px;
-}
 /* 그래프: 꾹 눌러도 글자 선택·복사 메뉴가 뜨지 않게 */
 .chart {
   -webkit-user-select: none;
@@ -2865,4 +2862,20 @@ b {
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
-.holding__rate{font-size:12px;white-space:nowrap}
+/* 수익률: 총 수익률은 크고 진하게, 오늘 수익률은 작고 연하게 */
+.rate-total {
+  font-size: 13px;
+  white-space: nowrap;
+}
+.rate-total b {
+  font-size: 14px;
+  font-weight: 800;
+}
+.rate-today {
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0.6;
+}
+.year__sub {
+  font-size: 11px;
+}

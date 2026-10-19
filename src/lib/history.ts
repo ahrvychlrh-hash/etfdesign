@@ -88,13 +88,23 @@ export interface YearSummary {
   year: string
   /** 월 수익률을 이어서 곱한 연 수익률 (%) */
   yearReturn: number
+  /** 그해 수익금 — 재투자는 원금이 아니라서 이미 여기에 들어 있음 */
   profit: number
+  /** 그해 재투자 기록 합계 (수익금 안에 포함된 금액) */
+  reinvest: number
   endValue: number
   months: number
   ongoing: boolean
 }
 
-export function yearSummaries(rows: MonthRow[]): YearSummary[] {
+/**
+ * 연도별 수익률·수익금. 맨 처음 기록한 달은 지난달 기록이 없으니
+ * 그때까지 쌓인 수익(월말 자산 - 원금)을 그달 수익으로 봐서, 기록 전체 수익금이 총 수익금과 맞게 함.
+ */
+export function yearSummaries(rows: MonthRow[], reinvests: Reinvest[] = []): YearSummary[] {
+  const first = rows[0]
+  const profitOf = (r: MonthRow) => (r === first ? r.gain : (r.profit ?? 0))
+  const retOf = (r: MonthRow) => (r === first ? r.gainPct : r.ret)
   const byYear = new Map<string, MonthRow[]>()
   for (const r of rows) {
     const y = r.month.slice(0, 4)
@@ -102,12 +112,13 @@ export function yearSummaries(rows: MonthRow[]): YearSummary[] {
   }
   return [...byYear.entries()]
     .map(([year, list]) => {
-      const withRet = list.filter((r) => r.ret != null)
-      const growth = withRet.reduce((g, r) => g * (1 + (r.ret as number) / 100), 1)
+      const withRet = list.filter((r) => retOf(r) != null)
+      const growth = withRet.reduce((g, r) => g * (1 + (retOf(r) as number) / 100), 1)
       return {
         year,
         yearReturn: (growth - 1) * 100,
-        profit: list.reduce((s, r) => s + (r.profit ?? 0), 0),
+        profit: list.reduce((s, r) => s + profitOf(r), 0),
+        reinvest: reinvestTotal(reinvests.filter((r) => r.month.startsWith(year))),
         endValue: list[list.length - 1].value,
         months: withRet.length,
         ongoing: list.some((r) => r.ongoing),

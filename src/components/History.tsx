@@ -23,7 +23,7 @@ const DOWN = '#3182f6'
 
 export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinvest, onUpdateReinvest, onDeleteReinvest }: Props) {
   const rows = useMemo(() => monthRows(snapshots), [snapshots])
-  const years = useMemo(() => yearSummaries(rows), [rows])
+  const years = useMemo(() => yearSummaries(rows, reinvests), [rows, reinvests])
   const value = holdings.reduce((s, h) => s + holdingValue(h), 0)
   const principal = realPrincipal(holdings, reinvests)
   const gain = value - principal
@@ -151,12 +151,13 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
                         {y.profit >= 0 ? '+' : ''}
                         {wonShort(y.profit)}
                       </b>
+                      {y.reinvest !== 0 && <span className="muted year__sub">재투자 {wonShort(y.reinvest)} 포함</span>}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-            <p className="footnote">연 수익률은 그해 월 수익률을 이어서 곱한 값이에요. 새로 넣은 돈과 재투자는 수익에서 빼고 계산해요.</p>
+            <p className="footnote">연 수익률은 그해 월 수익률을 이어서 곱한 값이에요. 수익금은 자산 증가분에서 새로 넣은 원금만 빼서, 그해 배당·매도 후 재투자한 금액도 들어 있어요. 처음 기록한 달은 그때까지 쌓인 수익도 함께 넣어요.</p>
           </Section>
         </>
       )}

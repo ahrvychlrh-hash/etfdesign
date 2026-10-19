@@ -2,7 +2,7 @@
 // 원금 = 매입금액 합계 − 재투자 합계, 수익금 = 평가금 − 원금 (= 평가 손익 + 재투자)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { realPrincipal } from '../src/lib/history.ts'
+import { monthRows, realPrincipal, yearSummaries } from '../src/lib/history.ts'
 
 const pct = (value, principal) => ((value - principal) / principal) * 100
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≈ ${b}`)
@@ -30,4 +30,28 @@ test('손해 보고 팔았으면 손실(마이너스)을 기록해 원금에 다
   const principal = realPrincipal([{ invested: 8_000_000 }], [{ amount: -2_000_000, kind: 'sell' }])
   assert.equal(principal, 10_000_000)
   close(pct(8_000_000, principal), -20)
+})
+
+test('연도별 수익금에 그해 재투자가 한 번만 들어감 (원금이 아니므로 이미 포함)', () => {
+  // 1월 1,000만 → 3월에 배당 50만을 재투자 (매입금액 1,050만, 원금은 그대로 1,000만), 3월 말 평가금 1,100만
+  const reinvests = [{ id: 'r', month: '2025-03', kind: 'dividend', amount: 500_000 }]
+  const principal = realPrincipal([{ invested: 10_500_000 }], reinvests)
+  const snaps = {
+    '2025-01': { value: 10_000_000, principal: 10_000_000, at: '' },
+    '2025-03': { value: 11_000_000, principal, at: '' },
+  }
+  const [y] = yearSummaries(monthRows(snaps, new Date('2026-01-15')), reinvests)
+  assert.equal(y.profit, 1_000_000)
+  assert.equal(y.reinvest, 500_000)
+})
+
+test('첫 기록 달까지 쌓인 수익도 그해 수익금에 들어가 총 수익금과 같아짐', () => {
+  // 1월 첫 기록: 원금 4,700만, 자산 4,929만(+229만) → 10월: 원금 9,988만, 자산 9,875만(-113만)
+  const snaps = {
+    '2026-01': { value: 49_290_000, principal: 47_000_000, at: '' },
+    '2026-10': { value: 98_750_000, principal: 99_880_000, at: '' },
+  }
+  const [y] = yearSummaries(monthRows(snaps, new Date('2026-10-19')))
+  assert.equal(y.profit, 98_750_000 - 99_880_000)
+  assert.equal(y.months, 2)
 })
