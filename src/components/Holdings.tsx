@@ -226,6 +226,7 @@ function HoldingCard({
   const v = holdingValue(h)
   const r = h.invested ? ((v - h.invested) / h.invested) * 100 : 0
   const div = holdingDividend(h)
+  const today = dayChange([h])
   return (
     <button className="card card--btn holding" onClick={() => onEdit(h)}>
       <div className="holding__top">
@@ -240,7 +241,16 @@ function HoldingCard({
         </span>
         <span className="list__num">
           <b>{wonShort(v)}</b>
-          <span className={r > 0 ? 'tone-up' : r < 0 ? 'tone-down' : 'muted'}>{pct(r)}</span>
+          <span className="holding__rate">
+            <span className="muted">총 </span>
+            <span className={tone(r)}>{pct(r)}</span>
+          </span>
+          {today && (
+            <span className="holding__rate">
+              <span className="muted">오늘 </span>
+              <span className={tone(today.amount)}>{pct(today.pct, 2)}</span>
+            </span>
+          )}
         </span>
       </div>
       <div className="tags">

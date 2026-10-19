@@ -2865,3 +2865,4 @@ b {
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
+.holding__rate{font-size:12px;white-space:nowrap}
