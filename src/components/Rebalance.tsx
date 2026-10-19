@@ -34,8 +34,6 @@ export function Rebalance({ holdings, targets, onTargets }: Props) {
   // 추가 투자금이 없으면 '추가 매수로만'은 의미가 없으므로 사고팔기로 계산
   const buyOnlyActive = buyOnly && extra > 0
   const rows = rebalance(list, targets, extra, buyOnlyActive)
-  const buyTotal = rows.filter((r) => r.action === 'buy').reduce((s, r) => s + r.amount, 0)
-  const sellTotal = rows.filter((r) => r.action === 'sell').reduce((s, r) => s - r.amount, 0)
   const exposure = useMemo(() => portfolioExposure(holdings), [holdings])
   const firstId = new Map(holdings.map((h) => [h.symbol, h.id]))
   const colors = colorMap(holdings)
@@ -161,18 +159,6 @@ export function Rebalance({ holdings, targets, onTargets }: Props) {
           </table>
         </div>
 
-        {hasTargets && (
-          <div className="reb-sum">
-            <span>
-              <span className="muted">매수 합계</span>
-              <b className="tone-up">{won(buyTotal)}</b>
-            </span>
-            <span>
-              <span className="muted">매도 합계</span>
-              <b className="tone-down">{won(sellTotal)}</b>
-            </span>
-          </div>
-        )}
         <p className="footnote">
           금액은 천원 단위로 보여줘요. 목표와 ±{TOLERANCE}%p 이내인 종목은 연하게 표시했어요(꼭 안 맞춰도 괜찮아요). 같은
           ETF가 여러 계좌에 있으면 합쳐서 계산하고, 주식 수는 현재가 기준 대략치예요.
@@ -185,13 +171,13 @@ export function Rebalance({ holdings, targets, onTargets }: Props) {
 
       <Section title="나라별 비중">
         <ShareCard
-          items={judgeCountries(exposure.country).map((c) => ({ ...c, hint: '적정 ' + c.range[0] + '~' + c.range[1] + '%' }))}
+          items={judgeCountries(exposure.country)}
         />
       </Section>
 
       <Section title="섹터별 비중 (주식 부분)">
         <ShareCard
-          items={judgeSectors(exposure.sector).map((c) => ({ ...c, hint: '세계 평균 ' + c.ref + '%' }))}
+          items={judgeSectors(exposure.sector)}
           empty="주식형 ETF가 없어요."
         />
         <p className="footnote">
@@ -215,12 +201,10 @@ interface ShareItem {
   value: number
   pct: number
   level?: Level
-  hint?: string
 }
 
-/** 한 줄 막대 + 3% 이상 범례, '자세히 보기'로 전체 목록 */
+/** 한 줄 막대 + 3% 이상 범례, 3% 미만은 기타로 묶음 */
 function ShareCard({ items, empty }: { items: ShareItem[]; empty?: string }) {
-  const [open, setOpen] = useState(false)
   const nonzero = items.filter((i) => i.value > 0)
   if (!nonzero.length) {
     return (
@@ -267,22 +251,10 @@ function ShareCard({ items, empty }: { items: ShareItem[]; empty?: string }) {
         )}
       </ul>
 
-      {flagged.length > 0 && !open && (
+      {flagged.length > 0 && (
         <p className="share__flag">
           {flagged.map((f) => `${f.key} ${f.level === 'high' ? '높음' : '낮음'}`).join(' · ')}
         </p>
-      )}
-
-      <button className="share__more" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        {open ? '접기 ▴' : '자세히 보기 ▾'}
-      </button>
-
-      {open && (
-        <div className="share__detail">
-          {items.map((m) => (
-            <ExposureRow key={m.key} label={m.key} pct={m.pct} level={m.level} hint={m.hint} />
-          ))}
-        </div>
       )}
     </div>
   )
@@ -323,18 +295,3 @@ function Action({ r }: { r: RebalanceRow }) {
 
 const LEVEL_TEXT: Record<Level, string> = { high: '▲ 높음', ok: '● 적정', low: '▼ 낮음' }
 
-function ExposureRow({ label, pct, level, hint }: { label: string; pct: number; level?: Level; hint?: string }) {
-  return (
-    <div className="exp-row">
-      <div className="exp-row__top">
-        <b>{label}</b>
-        <span className="exp-row__pct">{pct.toFixed(1)}%</span>
-        {level && <span className={`level level--${level}`}>{LEVEL_TEXT[level]}</span>}
-      </div>
-      <div className="exp-row__bar" aria-hidden>
-        <span style={{ width: `${Math.min(pct, 100)}%` }} />
-      </div>
-      {hint && <span className="exp-row__hint">{hint}</span>}
-    </div>
-  )
-}
