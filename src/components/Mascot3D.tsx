@@ -3,8 +3,8 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 /**
- * 메인 캐릭터 '모아' — 반짝이는 동전을 안고 있는 작은 로봇.
- * 외부 모델 파일 없이 기본 도형으로 만들고, 둥실거리기·눈 깜빡임·안테나와 동전 빛남·포인터 바라보기 동작을 넣었습니다.
+ * 메인 캐릭터 '모아' — ETF DESIGN 로고판을 안고 있는 작은 로봇.
+ * 외부 모델 파일 없이 기본 도형으로 만들고, 둥실거리기·눈 깜빡임·안테나와 로고 빛남·포인터 바라보기 동작을 넣었습니다.
  */
 
 /**
@@ -40,18 +40,85 @@ function useMaterials() {
       visor: new THREE.MeshPhysicalMaterial({ color: '#1d2d55', roughness: 0.08, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.05 }),
       glow: new THREE.MeshBasicMaterial({ color: '#8ff4ff' }),
       warm: new THREE.MeshBasicMaterial({ color: '#ffe39a' }),
-      coin: new THREE.MeshPhysicalMaterial({
-        color: '#ffcb45',
-        emissive: new THREE.Color('#ffb21a'),
-        emissiveIntensity: 0.55,
+      // ETF DESIGN 로고판 — 옆면은 로고 파랑, 앞면은 로고 그림
+      logo: new THREE.MeshPhysicalMaterial({
+        color: '#4a63f0',
+        emissive: new THREE.Color('#2f49e6'),
+        emissiveIntensity: 0.3,
         roughness: 0.3,
-        metalness: 0.4,
         clearcoat: 1,
+        clearcoatRoughness: 0.15,
       }),
-      coinFace: new THREE.MeshBasicMaterial({ color: '#fff3c4' }),
+      logoFace: new THREE.MeshBasicMaterial({ map: logoTexture(), transparent: true }),
     }),
     [],
   )
+}
+
+/* ---------------- ETF DESIGN 로고 ---------------- */
+
+/** 로고판 한 변 길이와 모서리 둥글기 (favicon.svg와 같은 비율 96:26) */
+const LOGO = 0.44
+const LOGO_R = (LOGO * 26) / 96
+
+/** public/favicon.svg 로고를 그대로 그린 그림 (96 단위 좌표를 키워서 그림) */
+function logoTexture() {
+  const size = 512
+  const k = size / 96
+  const c = document.createElement('canvas')
+  c.width = c.height = size
+  const g = c.getContext('2d')!
+  const round = (x: number, y: number, w: number, h: number, r: number) => {
+    g.beginPath()
+    g.roundRect(x * k, y * k, w * k, h * k, r * k)
+    g.fill()
+  }
+  const bg = g.createLinearGradient(0, 0, size, size)
+  bg.addColorStop(0, '#6a84ff')
+  bg.addColorStop(1, '#2f49e6')
+  g.fillStyle = bg
+  round(0, 0, 96, 96, 26)
+  g.fillStyle = '#fff'
+  round(24, 62, 48, 11, 5.5)
+  g.globalAlpha = 0.85
+  round(24, 44, 36, 11, 5.5)
+  g.globalAlpha = 0.7
+  round(24, 26, 24, 11, 5.5)
+  g.globalAlpha = 1
+  round(24, 26, 11, 47, 5.5)
+  const gold = g.createLinearGradient(0, 23 * k, 0, 39 * k)
+  gold.addColorStop(0, '#ffe08a')
+  gold.addColorStop(1, '#ffb21a')
+  g.fillStyle = gold
+  g.beginPath()
+  g.arc(64 * k, 31 * k, 8 * k, 0, Math.PI * 2)
+  g.fill()
+  g.strokeStyle = '#fff6d6'
+  g.lineWidth = 1.6 * k
+  g.beginPath()
+  g.arc(64 * k, 31 * k, 4 * k, 0, Math.PI * 2)
+  g.stroke()
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  tex.anisotropy = 4
+  return tex
+}
+
+/** 둥근 네모 판 (가운데 기준, 두께 방향은 +z) */
+function logoSlab() {
+  const h = LOGO / 2
+  const r = LOGO_R
+  const s = new THREE.Shape()
+  s.moveTo(-h + r, -h)
+  s.lineTo(h - r, -h)
+  s.quadraticCurveTo(h, -h, h, -h + r)
+  s.lineTo(h, h - r)
+  s.quadraticCurveTo(h, h, h - r, h)
+  s.lineTo(-h + r, h)
+  s.quadraticCurveTo(-h, h, -h, h - r)
+  s.lineTo(-h, -h + r)
+  s.quadraticCurveTo(-h, -h, -h + r, -h)
+  return new THREE.ExtrudeGeometry(s, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 4, curveSegments: 12 })
 }
 
 type Vec3 = [number, number, number]
@@ -92,6 +159,7 @@ function prefersReducedMotion() {
 
 function Robot({ lively }: { lively: boolean }) {
   const m = useMaterials()
+  const slab = useMemo(logoSlab, [])
   const root = useRef<THREE.Group>(null)
   // 동작(한 바퀴·점프 등)은 바라보기 회전과 섞이지 않게 안쪽 그룹에 줌
   const actor = useRef<THREE.Group>(null)
@@ -155,10 +223,10 @@ function Robot({ lively }: { lively: boolean }) {
     }
     // 눈 깜빡임 (약 4초마다), 기쁠 땐 눈웃음
     if (eyes.current) eyes.current.scale.y = squint ? 0.45 : t % 4 < 0.12 ? 0.12 : 1
-    // 안테나·동전이 은은하게 빛남
+    // 안테나·로고가 은은하게 빛남
     const pulse = 0.75 + Math.sin(t * 3) * 0.25
     m.warm.color.setRGB(1, 0.85 + pulse * 0.1, 0.55 + pulse * 0.2)
-    m.coin.emissiveIntensity = 0.4 + pulse * 0.35
+    m.logo.emissiveIntensity = 0.2 + pulse * 0.25
   })
 
   return (
@@ -214,17 +282,15 @@ function Robot({ lively }: { lively: boolean }) {
       <Pill p={[0, 0.82, 0]} r={0.4} len={0.2} m={m.shell} />
       <Ball p={[0, 0.82, 0.3]} r={0.22} m={m.blue} s={[1, 1, 0.3]} />
 
-      {/* 두 팔로 안은 빛나는 동전 */}
-      <group position={[0, 0.88, 0.5]} rotation={[Math.PI / 2 - 0.15, 0, 0]}>
-        <mesh material={m.coin}>
-          <cylinderGeometry args={[0.2, 0.2, 0.06, 40]} />
-        </mesh>
-        <mesh position={[0, 0.032, 0]} material={m.coinFace}>
-          <cylinderGeometry args={[0.13, 0.13, 0.005, 40]} />
+      {/* 두 팔로 안은 ETF DESIGN 로고판 (윗부분이 살짝 뒤로 기움) */}
+      <group position={[0, 0.88, 0.44]} rotation={[-0.15, 0, 0]}>
+        <mesh geometry={slab} material={m.logo} />
+        <mesh position={[0, 0, 0.067]} material={m.logoFace}>
+          <planeGeometry args={[LOGO, LOGO]} />
         </mesh>
       </group>
-      <pointLight position={[0, 0.9, 0.9]} color="#ffd36a" intensity={1.2} distance={1.6} />
-      {/* 왼팔은 동전을 안고, 오른팔은 어깨를 축으로 들어 인사할 수 있게 */}
+      <pointLight position={[0, 0.9, 0.9]} color="#9fb2ff" intensity={1.0} distance={1.6} />
+      {/* 왼팔은 로고판을 안고, 오른팔은 어깨를 축으로 들어 인사할 수 있게 */}
       <Pill p={[-0.3, 0.86, 0.36]} r={0.11} len={0.22} m={m.blue} rot={[0.6, 0, -1.15]} />
       <group ref={armR} position={[0.36, 1.0, 0.14]}>
         <Pill p={[-0.06, -0.14, 0.22]} r={0.11} len={0.22} m={m.blue} rot={[0.6, 0, 1.15]} />

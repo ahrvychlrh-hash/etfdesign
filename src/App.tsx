@@ -89,7 +89,10 @@ export default function App() {
     const stale = (at?: string) => force || !at || Date.now() - new Date(at).getTime() > STALE_MS
     const symbols = [
       ...new Set([
-        ...holdingsRef.current.filter((h) => stale(h.stats?.updatedAt)).map((h) => h.symbol),
+        // 전일 종가가 없는(예전에 받은) 시세도 다시 받아 '오늘' 수익률을 계산
+        ...holdingsRef.current
+          .filter((h) => stale(h.stats?.updatedAt) || (h.priceMode === 'auto' && h.stats?.prevClose == null))
+          .map((h) => h.symbol),
         ...cryptosRef.current.filter((c) => stale(c.updatedAt)).map((c) => c.symbol),
       ]),
     ]
