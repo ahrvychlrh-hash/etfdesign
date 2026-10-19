@@ -32,6 +32,7 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
   const withPct = recent.filter((r) => r.gainPct != null)
   const dividendRe = reinvestTotal(reinvests, 'dividend')
   const sellRe = reinvestTotal(reinvests, 'sell')
+  const reinvested = dividendRe + sellRe
 
   return (
     <>
@@ -39,7 +40,7 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
         <div className="hero__top">
           <span className="logo">자산 기록</span>
         </div>
-        <p className="hero__hello">실제 원금 {wonShort(principal)} 대비</p>
+        <p className="hero__hello">총 원금 {wonShort(principal)}</p>
         <h1 className="hero__title">
           <b>
             {gain >= 0 ? '+' : ''}
@@ -47,13 +48,6 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
           </b>{' '}
           ({principal > 0 ? pct((gain / principal) * 100) : '—'})
         </h1>
-        {reinvestTotal(reinvests) !== 0 && (
-          <p className="hero__meta">
-            {reinvestTotal(reinvests) > 0
-              ? `재투자한 ${wonShort(reinvestTotal(reinvests))}은 원금에서 빼고 계산했어요`
-              : `매도 손실 ${wonShort(-reinvestTotal(reinvests))}은 원금에 더해 계산했어요`}
-          </p>
-        )}
         <img className="hero__corner" src={ICONS.calendar} alt="" />
       </header>
 
@@ -61,6 +55,7 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
         <span>
           <span className="muted">총 원금</span>
           <b>{wonShort(principal)}</b>
+          <small className="muted">투자금 − 재투자</small>
         </span>
         <span>
           <span className="muted">평가금</span>
@@ -72,13 +67,12 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
             {gain >= 0 ? '+' : ''}
             {wonShort(gain)}
           </b>
+          <small className="muted">평가손익 + 재투자</small>
         </span>
         <span>
           <span className="muted">재투자</span>
-          <b>{wonShort(dividendRe + sellRe)}</b>
-          <small className="muted">
-            배당 {wonShort(dividendRe)} · 매도 후 {wonShort(sellRe)}
-          </small>
+          <b>{wonShort(reinvested)}</b>
+          <small className="muted">배당 + 매도 후 재투자</small>
         </span>
       </div>
 
@@ -272,7 +266,7 @@ function MonthTable({
             <MoneyInput id="snap-value" value={value} onChange={setValue} />
           </div>
           <div className="form-item">
-            <span className="form-item__label">그때까지 넣은 실제 원금 (재투자 제외)</span>
+            <span className="form-item__label">그때까지의 총 원금 (투자금 − 재투자)</span>
             <MoneyInput id="snap-principal" value={principal} onChange={setPrincipal} />
           </div>
           <div className="row-end">
