@@ -26,8 +26,10 @@ interface Saved {
 function load(): Saved {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<Saved> | null
+    const messages = Array.isArray(s?.messages) ? [...s.messages] : []
+    while (messages.length && messages[messages.length - 1].role === 'user') messages.pop()
     return {
-      messages: Array.isArray(s?.messages) ? s.messages : [],
+      messages,
       withAmounts: !!s?.withAmounts,
       password: s?.password ?? '',
       apiKey: s?.apiKey ?? '',
@@ -116,35 +118,24 @@ export function ChatSheet({ getContext, onClose }: Props) {
     setBusy(true)
     const res = await sendChat(next, getContext(saved.withAmounts), password, apiKey || undefined)
     setBusy(false)
-    if (res.ok) update({ messages: [...next, { role: 'model', text: res.text }] })
-    else fail(res.code, res.error)
+    if (res.ok) {
+      update({ messages: [...next, { role: 'model', text: res.text }] })
+      return
+    }
+    // 답을 못 받으면 질문은 기록에서 빼고 입력칸에 돌려둠 — 저절로 다시 보내지 않음
+    update({ messages })
+    setInput(q)
+    if (res.code === 'nokey') setServerKey(false)
+    setError({ code: res.code, text: res.error })
   }
 
-  function fail(code: string, text: string) {
-    if (code === 'nokey') setServerKey(false)
-    setError({ code, text })
-  }
-
-  /** 실패한 마지막 질문을 다시 보냄 */
-  async function retry(password = saved.password, key = apiKey) {
-    const last = messages[messages.length - 1]
-    if (last?.role !== 'user' || busy) return
-    setError(null)
-    setBusy(true)
-    const res = await sendChat(messages, getContext(saved.withAmounts), password, key || undefined)
-    setBusy(false)
-    if (res.ok) update({ messages: [...messages, { role: 'model', text: res.text }] })
-    else fail(res.code, res.error)
-  }
-
-  /** 내 키 연결 — 확인되면 저장하고, 답을 못 받은 질문이 있으면 다시 물어봄 */
+  /** 내 키 연결 — 확인되면 저장만 하고, 질문은 사용자가 직접 보냄 */
   async function connect(key: string) {
     const check = await checkGeminiKey(key)
     if (!check.ok) return check.error ?? '키를 확인하지 못했어요.'
     update({ apiKey: key.trim() })
     setConnecting(false)
     setError(null)
-    if (messages[messages.length - 1]?.role === 'user') retry(saved.password, key.trim())
     return null
   }
 
@@ -153,7 +144,6 @@ export function ChatSheet({ getContext, onClose }: Props) {
   const pool = (messages.length ? FOLLOW_UPS : STARTERS).filter((q) => !asked.has(q))
   const offset = messages.length ? Math.floor(messages.length / 2) % Math.max(pool.length, 1) : 0
   const suggestions = messages.length ? [...pool.slice(offset), ...pool.slice(0, offset)].slice(0, 3) : pool
-  const waitingRetry = !busy && !!error && messages[messages.length - 1]?.role === 'user'
 
   return (
     <div className="modal" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -251,17 +241,15 @@ export function ChatSheet({ getContext, onClose }: Props) {
                   onSubmit={(e) => {
                     e.preventDefault()
                     update({ password: pw })
-                    retry(pw)
+                    ask(input, pw)
                   }}
                 >
                   <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="대화 비밀번호" aria-label="대화 비밀번호" />
                   <button className="btn btn--primary btn--sm">확인</button>
                 </form>
               )}
-              {waitingRetry && error.code !== 'password' && error.code !== 'nokey' && (
-                <button className="link" onClick={() => retry()}>
-                  다시 물어보기
-                </button>
+              {error.code !== 'password' && error.code !== 'nokey' && error.code !== 'badkey' && (
+                <p className="muted">질문은 입력칸에 그대로 있어요. 잠시 뒤 다시 보내 주세요.</p>
               )}
             </div>
           )}
