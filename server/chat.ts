@@ -1,6 +1,7 @@
 /**
  * 모아와 대화 — Google Gemini API (무료 키) 연동.
- * 키는 서버 환경변수 GEMINI_API_KEY에만 두고, 브라우저에는 보내지 않습니다.
+ * 서버 키는 환경변수 GEMINI_API_KEY에만 두고 브라우저에는 보내지 않습니다.
+ * 서버 키가 없으면 사용자가 자기 키를 연결해 브라우저에서 바로 씁니다 (askGemini).
  * - GEMINI_MODEL: 쓸 모델을 직접 정할 때 (비우면 쓸 수 있는 최신 Flash 모델을 자동으로 고름)
  * - CHAT_PASSWORD: 정해 두면 이 비밀번호를 아는 사람만 대화할 수 있음 (무료 한도를 남이 쓰지 않게)
  * 개발 서버(vite)와 배포 서버(Vercel 함수)가 이 모듈을 함께 씁니다.
@@ -47,7 +48,23 @@ export async function handleChat(raw: unknown, env: ChatEnv): Promise<{ status: 
   if (password && req.password !== password) {
     return { status: 401, body: { code: 'password', error: '비밀번호가 맞지 않아요.' } }
   }
+  return askGemini(key, req, env.GEMINI_MODEL?.trim())
+}
 
+/** 서버에 키·비밀번호가 있는지 (대화창을 열 때 '내 키 연결'을 바로 보여줄지 정함) */
+export function chatStatus(env: ChatEnv) {
+  return { serverKey: !!env.GEMINI_API_KEY?.trim(), password: !!env.CHAT_PASSWORD?.trim() }
+}
+
+/**
+ * Gemini에 질문. 서버 키로는 서버에서, 사용자가 연결한 자기 키로는 브라우저에서 바로 부름
+ * (자기 키는 우리 서버를 거치지 않고 Google로만 감).
+ */
+export async function askGemini(
+  key: string,
+  req: { messages?: ChatMessage[]; context?: string },
+  preferred?: string,
+): Promise<{ status: number; body: unknown }> {
   const messages = (Array.isArray(req.messages) ? req.messages : [])
     .filter((m) => (m.role === 'user' || m.role === 'model') && typeof m.text === 'string' && m.text.trim())
     .slice(-MAX_TURNS)
@@ -66,7 +83,7 @@ export async function handleChat(raw: unknown, env: ChatEnv): Promise<{ status: 
     generationConfig: { temperature: 0.6, maxOutputTokens: 2048 },
   }
 
-  const models = await pickModels(key, env.GEMINI_MODEL?.trim())
+  const models = await pickModels(key, preferred)
   let last = { status: 502, body: { code: 'fail', error: '모아가 지금 대답하지 못했어요. 잠시 뒤 다시 물어봐 주세요.' } as unknown }
   for (const model of models) {
     const res = await fetch(`${API}/models/${model}:generateContent`, {
@@ -105,7 +122,20 @@ interface GeminiResponse {
 
 /* ---------- 모델 고르기 ---------- */
 
-let cached: { at: number; list: string[] } | null = null
+let cached: { key: string; at: number; list: string[] } | null = null
+
+/** 키가 쓸 수 있는지 확인 — 모델 목록을 받아봄 */
+export async function checkGeminiKey(key: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API}/models?pageSize=1`, { headers: { 'x-goog-api-key': key.trim() } })
+    if (res.ok) return { ok: true }
+    if (res.status === 400 || res.status === 403) return { ok: false, error: '키가 올바르지 않아요. 복사한 키를 다시 확인해 주세요.' }
+    if (res.status === 429) return { ok: true }
+    return { ok: false, error: '지금은 확인이 어려워요. 잠시 뒤 다시 시도해 주세요.' }
+  } catch {
+    return { ok: false, error: '인터넷 연결을 확인해 주세요.' }
+  }
+}
 
 /**
  * 쓸 모델 순서. 이름이 자주 바뀌어서 Google에 쓸 수 있는 모델 목록을 물어보고
@@ -113,7 +143,7 @@ let cached: { at: number; list: string[] } | null = null
  */
 async function pickModels(key: string, preferred?: string): Promise<string[]> {
   const fallback = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-flash-lite-latest']
-  if (!cached || Date.now() - cached.at > 3600_000) {
+  if (!cached || cached.key !== key || Date.now() - cached.at > 3600_000) {
     try {
       const res = await fetch(`${API}/models?pageSize=200`, { headers: { 'x-goog-api-key': key } })
       const j = (await res.json()) as { models?: { name: string; supportedGenerationMethods?: string[] }[] }
@@ -126,11 +156,11 @@ async function pickModels(key: string, preferred?: string): Promise<string[]> {
       const lite = names.filter((n) => /^gemini-\d+(\.\d+)?-flash-lite$/.test(n)).sort(byVersion)
       const alias = names.filter((n) => n === 'gemini-flash-latest' || n === 'gemini-flash-lite-latest')
       const list = [...flash.slice(0, 2), ...alias, ...lite.slice(0, 1)]
-      if (list.length) cached = { at: Date.now(), list }
+      if (list.length) cached = { key, at: Date.now(), list }
     } catch {
       // 목록을 못 받으면 기본 이름으로 시도
     }
   }
-  const list = cached?.list ?? fallback
+  const list = cached?.key === key ? cached.list : fallback
   return [...new Set([...(preferred ? [preferred] : []), ...list])].slice(0, 4)
 }

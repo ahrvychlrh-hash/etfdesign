@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { sendChat, type ChatTurn } from '../lib/api'
-import { ICONS, MASCOT_NAME } from '../lib/characters'
+import { fetchChatStatus, sendChat, type ChatTurn } from '../lib/api'
+import { checkGeminiKey } from '../../server/chat'
+import { MASCOT_NAME } from '../lib/characters'
+import { MoaFace } from './MoaFace'
 import { Toggle } from './ui'
 
 interface Props {
@@ -17,14 +19,21 @@ interface Saved {
   messages: ChatTurn[]
   withAmounts: boolean
   password: string
+  /** 사용자가 연결한 자기 Gemini 키 — 이 기기에만 저장, Google로만 보냄 */
+  apiKey: string
 }
 
 function load(): Saved {
   try {
     const s = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<Saved> | null
-    return { messages: Array.isArray(s?.messages) ? s.messages : [], withAmounts: !!s?.withAmounts, password: s?.password ?? '' }
+    return {
+      messages: Array.isArray(s?.messages) ? s.messages : [],
+      withAmounts: !!s?.withAmounts,
+      password: s?.password ?? '',
+      apiKey: s?.apiKey ?? '',
+    }
   } catch {
-    return { messages: [], withAmounts: false, password: '' }
+    return { messages: [], withAmounts: false, password: '', apiKey: '' }
   }
 }
 
@@ -64,8 +73,19 @@ export function ChatSheet({ getContext, onClose }: Props) {
   const [error, setError] = useState<{ code: string; text: string } | null>(null)
   const [settings, setSettings] = useState(false)
   const [pw, setPw] = useState(saved.password)
+  /** 서버에 키가 있는지 (null: 아직 모름) */
+  const [serverKey, setServerKey] = useState<boolean | null>(null)
+  /** 내 키 연결 화면을 직접 연 경우 */
+  const [connecting, setConnecting] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
-  const { messages } = saved
+  const { messages, apiKey } = saved
+  // 내 키도 없고 서버 키도 없으면 연결 화면부터
+  const needsKey = connecting || (!apiKey && serverKey === false)
+
+  useEffect(() => {
+    if (apiKey) return
+    fetchChatStatus().then((s) => s && setServerKey(s.serverKey))
+  }, [apiKey])
 
   const update = (p: Partial<Saved>) =>
     setSaved((s) => {
@@ -94,22 +114,38 @@ export function ChatSheet({ getContext, onClose }: Props) {
     setInput('')
     setError(null)
     setBusy(true)
-    const res = await sendChat(next, getContext(saved.withAmounts), password)
+    const res = await sendChat(next, getContext(saved.withAmounts), password, apiKey || undefined)
     setBusy(false)
     if (res.ok) update({ messages: [...next, { role: 'model', text: res.text }] })
-    else setError({ code: res.code, text: res.error })
+    else fail(res.code, res.error)
+  }
+
+  function fail(code: string, text: string) {
+    if (code === 'nokey') setServerKey(false)
+    setError({ code, text })
   }
 
   /** 실패한 마지막 질문을 다시 보냄 */
-  async function retry(password = saved.password) {
+  async function retry(password = saved.password, key = apiKey) {
     const last = messages[messages.length - 1]
     if (last?.role !== 'user' || busy) return
     setError(null)
     setBusy(true)
-    const res = await sendChat(messages, getContext(saved.withAmounts), password)
+    const res = await sendChat(messages, getContext(saved.withAmounts), password, key || undefined)
     setBusy(false)
     if (res.ok) update({ messages: [...messages, { role: 'model', text: res.text }] })
-    else setError({ code: res.code, text: res.error })
+    else fail(res.code, res.error)
+  }
+
+  /** 내 키 연결 — 확인되면 저장하고, 답을 못 받은 질문이 있으면 다시 물어봄 */
+  async function connect(key: string) {
+    const check = await checkGeminiKey(key)
+    if (!check.ok) return check.error ?? '키를 확인하지 못했어요.'
+    update({ apiKey: key.trim() })
+    setConnecting(false)
+    setError(null)
+    if (messages[messages.length - 1]?.role === 'user') retry(saved.password, key.trim())
+    return null
   }
 
   // 이미 물어본 질문은 빼고 3개씩
@@ -124,7 +160,7 @@ export function ChatSheet({ getContext, onClose }: Props) {
       <div className="sheet modal__sheet chat" role="dialog" aria-label={`${MASCOT_NAME}와 대화`}>
         <div className="sheet__grab" />
         <div className="sheet__head chat__head">
-          <img src={ICONS.robot} alt="" className="icon3d icon3d--sm" />
+          <MoaFace size={44} className="chat__face" />
           <span className="chat__title">
             <h2>{MASCOT_NAME}와 대화</h2>
             <span className="muted">내 포트폴리오를 보고 답해요</span>
@@ -146,6 +182,29 @@ export function ChatSheet({ getContext, onClose }: Props) {
               </span>
               <Toggle on={saved.withAmounts} onChange={(v) => update({ withAmounts: v })} label="금액도 알려주기" />
             </div>
+            <div className="chat__setting">
+              <span>
+                <b>내 Gemini 키</b>
+                <span className="muted">
+                  {apiKey ? `연결됨 · ${apiKey.slice(0, 4)}…${apiKey.slice(-4)}` : serverKey ? '연결 안 함 (앱 기본 키 사용 중)' : '연결 안 됨'}
+                </span>
+              </span>
+              {apiKey ? (
+                <button className="link link--danger" onClick={() => update({ apiKey: '' })}>
+                  연결 끊기
+                </button>
+              ) : (
+                <button
+                  className="link"
+                  onClick={() => {
+                    setConnecting(true)
+                    setSettings(false)
+                  }}
+                >
+                  연결하기
+                </button>
+              )}
+            </div>
             <button
               className="link link--danger"
               onClick={() => {
@@ -161,7 +220,8 @@ export function ChatSheet({ getContext, onClose }: Props) {
 
         <div className="chat__list" ref={listRef}>
           <Bubble who="model">
-            안녕하세요! 저는 {MASCOT_NAME}예요. 앱에 있는 내 포트폴리오를 보고 같이 고민해 드릴게요. 아래 질문을 눌러도 되고, 편하게 물어봐도 돼요.
+            안녕하세요! 저는 {MASCOT_NAME}예요. 앱에 있는 내 포트폴리오를 보고 같이 고민해 드릴게요.{' '}
+            {needsKey ? '먼저 아래에서 Gemini 키를 연결해 주세요.' : '아래 질문을 눌러도 되고, 편하게 물어봐도 돼요.'}
           </Bubble>
           {messages.map((m, i) => (
             <Bubble key={i} who={m.role}>
@@ -177,10 +237,14 @@ export function ChatSheet({ getContext, onClose }: Props) {
               </span>
             </Bubble>
           )}
-          {error && (
+          {error && !(error.code === 'nokey' && needsKey) && (
             <div className="chat__error">
               <p>{error.text}</p>
-              {error.code === 'nokey' && <p className="muted">Vercel 환경변수에 GEMINI_API_KEY를 넣으면 대화할 수 있어요.</p>}
+              {error.code === 'badkey' && apiKey && (
+                <button className="link" onClick={() => setConnecting(true)}>
+                  키 다시 연결하기
+                </button>
+              )}
               {error.code === 'password' && (
                 <form
                   className="chat__pw"
@@ -201,9 +265,16 @@ export function ChatSheet({ getContext, onClose }: Props) {
               )}
             </div>
           )}
+          {needsKey && (
+            <KeyConnect
+              reason={!apiKey && serverKey === false ? 'none' : 'manual'}
+              onConnect={connect}
+              onCancel={connecting ? () => setConnecting(false) : undefined}
+            />
+          )}
         </div>
 
-        {!busy && (
+        {!busy && !needsKey && (
           <div className="chat__chips">
             {suggestions.map((q) => (
               <button key={q} className="chip chat__chip" onClick={() => ask(q)}>
@@ -213,6 +284,7 @@ export function ChatSheet({ getContext, onClose }: Props) {
           </div>
         )}
 
+        {!needsKey && (
         <form
           className="chat__input"
           onSubmit={(e) => {
@@ -238,8 +310,73 @@ export function ChatSheet({ getContext, onClose }: Props) {
             ↑
           </button>
         </form>
+        )}
         <p className="chat__note">{MASCOT_NAME}의 답은 참고용이에요. 투자 결정은 직접 판단해 주세요.</p>
       </div>
+    </div>
+  )
+}
+
+/** 내 Gemini 키 연결 안내 + 입력 */
+function KeyConnect({
+  reason,
+  onConnect,
+  onCancel,
+}: {
+  reason: 'none' | 'manual'
+  onConnect: (key: string) => Promise<string | null>
+  onCancel?: () => void
+}) {
+  const [key, setKey] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  return (
+    <div className="card card--soft key-connect">
+      <b className="key-connect__title">내 Gemini 키 연결하기</b>
+      <p className="muted">
+        {reason === 'none' ? '모아와 대화하려면 Google Gemini 키가 필요해요. ' : ''}
+        무료로 1분이면 만들 수 있어요.
+      </p>
+      <ol className="key-connect__steps">
+        <li>아래 버튼으로 Google AI Studio를 열고 구글 계정으로 로그인</li>
+        <li>
+          <b>Create API key</b>(API 키 만들기) 누르기
+        </li>
+        <li>만들어진 키(AIza…)를 복사해서 아래에 붙여넣기</li>
+      </ol>
+      <a className="btn btn--ghost btn--sm key-connect__open" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
+        Google AI Studio 열기 ↗
+      </a>
+      <form
+        className="chat__pw"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          if (!key.trim() || checking) return
+          setChecking(true)
+          setErr(await onConnect(key))
+          setChecking(false)
+        }}
+      >
+        <input
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+          placeholder="AIza로 시작하는 키"
+          aria-label="Gemini API 키"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+        />
+        <button className="btn btn--primary btn--sm" disabled={!key.trim() || checking}>
+          {checking ? '확인 중' : '연결'}
+        </button>
+      </form>
+      {err && <p className="key-connect__err">{err}</p>}
+      <p className="key-connect__note">키는 이 폰에만 저장되고 Google로만 보내져요. 결제 정보를 등록하지 않으면 돈이 들지 않아요.</p>
+      {onCancel && (
+        <button className="link" onClick={onCancel}>
+          닫기
+        </button>
+      )}
     </div>
   )
 }
@@ -247,7 +384,7 @@ export function ChatSheet({ getContext, onClose }: Props) {
 function Bubble({ who, children }: { who: 'user' | 'model'; children: ReactNode }) {
   return (
     <div className={`chat__row chat__row--${who}`}>
-      {who === 'model' && <img src={ICONS.robot} alt="" className="chat__avatar" />}
+      {who === 'model' && <MoaFace size={30} className="chat__avatar" />}
       <div className={`chat__bubble chat__bubble--${who}`}>{children}</div>
     </div>
   )

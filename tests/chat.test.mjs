@@ -1,7 +1,7 @@
 // 모아 대화(Gemini) 서버 함수 검사 — 실제 Google 서버 대신 가짜 응답으로 확인
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { handleChat } from '../server/chat.ts'
+import { askGemini, chatStatus, checkGeminiKey, handleChat } from '../server/chat.ts'
 
 const ask = { messages: [{ role: 'user', text: '내 포트폴리오 어때요?' }], context: '- 미국 60%' }
 
@@ -96,4 +96,27 @@ test('모아 말로 시작하는 대화는 앞을 잘라 사용자 말부터 보
   )
   const sent = JSON.parse(calls.find((c) => c.url.includes(':generateContent')).init.body)
   assert.equal(sent.contents[0].role, 'user')
+})
+
+test('서버 상태: 키·비밀번호가 있는지만 알려줌 (키 값은 안 보냄)', () => {
+  assert.deepEqual(chatStatus({ GEMINI_API_KEY: 'secret' }), { serverKey: true, password: false })
+  assert.deepEqual(chatStatus({}), { serverKey: false, password: false })
+})
+
+test('내 키 연결: 올바른 키면 ok, 잘못된 키면 안내', async () => {
+  fakeFetch(() => ({ body: MODELS }))
+  assert.equal((await checkGeminiKey('good')).ok, true)
+  fakeFetch(() => ({ status: 400, body: { error: { message: 'API key not valid' } } }))
+  const bad = await checkGeminiKey('bad')
+  assert.equal(bad.ok, false)
+  assert.ok(bad.error.includes('올바르지'))
+})
+
+test('내 키로 바로 물어볼 때는 비밀번호 없이 그 키로 보냄', async () => {
+  const calls = fakeFetch((url) =>
+    url.includes(':generateContent') ? { body: { candidates: [{ content: { parts: [{ text: '내 키 답' }] } }] } } : { body: MODELS },
+  )
+  const r = await askGemini('my-key', ask)
+  assert.equal(r.body.text, '내 키 답')
+  assert.ok(calls.every((c) => c.init?.headers?.['x-goog-api-key'] === 'my-key'))
 })

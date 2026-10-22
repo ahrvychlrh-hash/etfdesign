@@ -34,7 +34,6 @@ export const ICONS = {
   barChart: emoji3d('Bar chart'),
   briefcase: emoji3d('Briefcase'),
   banknote: emoji3d('Dollar banknote'),
-  robot: emoji3d('Robot'),
   speech: emoji3d('Speech balloon'),
 }
 

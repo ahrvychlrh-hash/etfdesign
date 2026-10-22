@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { handleApi } from './server/yahoo'
-import { handleChat } from './server/chat'
+import { chatStatus, handleChat } from './server/chat'
 
 /** 개발 중에도 /api/* 를 Vercel 함수와 똑같이 처리 (Gemini 키는 .env.local의 GEMINI_API_KEY) */
 function devApi(env: Record<string, string>): Plugin {
@@ -9,6 +9,11 @@ function devApi(env: Record<string, string>): Plugin {
     name: 'dev-api',
     configureServer(server) {
       server.middlewares.use('/api/chat', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        if (req.method === 'GET') {
+          res.end(JSON.stringify(chatStatus({ ...env, ...process.env })))
+          return
+        }
         let raw = ''
         for await (const chunk of req) raw += chunk
         let body: unknown = null

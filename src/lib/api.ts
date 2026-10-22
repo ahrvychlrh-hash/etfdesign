@@ -1,4 +1,5 @@
 import type { EtfStats } from './types'
+import { askGemini } from '../../server/chat'
 
 export interface Quote {
   symbol: string
@@ -120,18 +121,40 @@ export interface ChatTurn {
   text: string
 }
 
-/** 모아(Gemini)에게 질문 — 실패하면 code(nokey·password·limit 등)와 안내 문구를 돌려줌 */
-export async function sendChat(messages: ChatTurn[], context: string, password: string) {
+/**
+ * 모아(Gemini)에게 질문 — 실패하면 code(nokey·password·limit 등)와 안내 문구를 돌려줌.
+ * apiKey(사용자가 연결한 자기 키)가 있으면 우리 서버를 거치지 않고 Google로 바로 물어봄.
+ */
+export async function sendChat(messages: ChatTurn[], context: string, password: string, apiKey?: string) {
   try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, context, password }),
-    })
-    const j = (await res.json().catch(() => ({}))) as { text?: string; code?: string; error?: string }
-    if (res.ok && j.text) return { ok: true as const, text: j.text }
+    let status: number
+    let j: { text?: string; code?: string; error?: string }
+    if (apiKey) {
+      const out = await askGemini(apiKey, { messages, context })
+      status = out.status
+      j = out.body as typeof j
+    } else {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, context, password }),
+      })
+      status = res.status
+      j = await res.json().catch(() => ({}))
+    }
+    if (status === 200 && j.text) return { ok: true as const, text: j.text }
     return { ok: false as const, code: j.code ?? 'fail', error: j.error ?? '모아가 지금 대답하지 못했어요.' }
   } catch {
     return { ok: false as const, code: 'network', error: '인터넷 연결을 확인해 주세요.' }
+  }
+}
+
+/** 서버에 Gemini 키가 있는지 — 모르면 null */
+export async function fetchChatStatus(): Promise<{ serverKey: boolean; password: boolean } | null> {
+  try {
+    const res = await fetch('/api/chat')
+    return res.ok ? await res.json() : null
+  } catch {
+    return null
   }
 }
