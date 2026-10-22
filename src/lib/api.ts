@@ -114,3 +114,24 @@ export async function loadBenchmarks(): Promise<Record<string, import('./expecte
   }
   return data
 }
+
+export interface ChatTurn {
+  role: 'user' | 'model'
+  text: string
+}
+
+/** 모아(Gemini)에게 질문 — 실패하면 code(nokey·password·limit 등)와 안내 문구를 돌려줌 */
+export async function sendChat(messages: ChatTurn[], context: string, password: string) {
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, context, password }),
+    })
+    const j = (await res.json().catch(() => ({}))) as { text?: string; code?: string; error?: string }
+    if (res.ok && j.text) return { ok: true as const, text: j.text }
+    return { ok: false as const, code: j.code ?? 'fail', error: j.error ?? '모아가 지금 대답하지 못했어요.' }
+  } catch {
+    return { ok: false as const, code: 'network', error: '인터넷 연결을 확인해 주세요.' }
+  }
+}

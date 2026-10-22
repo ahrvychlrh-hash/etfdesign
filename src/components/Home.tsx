@@ -16,9 +16,11 @@ interface Props {
   onTab: (t: Tab) => void
   onAdd: () => void
   onReinvest: (v: boolean) => void
+  /** 모아와 대화창 열기 */
+  onChat: () => void
 }
 
-export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Props) {
+export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest, onChat }: Props) {
   // 6시간마다 바뀌는 장기 투자 명언
   const quote = currentQuote()
 
@@ -88,6 +90,15 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Prop
           <b>ETF 추가</b>
         </button>
       </div>
+
+      <button className="card card--btn ask-moa" onClick={onChat}>
+        <img src={ICONS.speech} alt="" className="icon3d icon3d--sm" />
+        <span className="ask-moa__text">
+          <b>{MASCOT_NAME}에게 물어보기</b>
+          <span className="muted">내 포트폴리오를 보고 답해 줘요</span>
+        </span>
+        <span className="chev">›</span>
+      </button>
 
       <div className="card card--soft reinvest">
         <img src={ICONS.coin} alt="" className="icon3d icon3d--sm" />
