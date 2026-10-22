@@ -72,6 +72,8 @@ export function ChatSheet({ getContext, onClose }: Props) {
   const [saved, setSaved] = useState(load)
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  /** 지금 만들어지고 있는 답 (글자가 오는 대로 보여줌) */
+  const [partial, setPartial] = useState('')
   const [error, setError] = useState<{ code: string; text: string } | null>(null)
   const [settings, setSettings] = useState(false)
   const [pw, setPw] = useState(saved.password)
@@ -106,7 +108,7 @@ export function ChatSheet({ getContext, onClose }: Props) {
   useEffect(() => {
     const el = listRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [messages.length, busy, error])
+  }, [messages.length, busy, error, partial])
 
   async function ask(text: string, password = saved.password) {
     const q = text.trim()
@@ -116,8 +118,10 @@ export function ChatSheet({ getContext, onClose }: Props) {
     setInput('')
     setError(null)
     setBusy(true)
-    const res = await sendChat(next, getContext(saved.withAmounts), password, apiKey || undefined)
+    setPartial('')
+    const res = await sendChat(next, getContext(saved.withAmounts), password, apiKey || undefined, (t) => setPartial((p) => p + t))
     setBusy(false)
+    setPartial('')
     if (res.ok) {
       update({ messages: [...next, { role: 'model', text: res.text }] })
       return
@@ -220,11 +224,15 @@ export function ChatSheet({ getContext, onClose }: Props) {
           ))}
           {busy && (
             <Bubble who="model">
-              <span className="chat__typing" aria-label="생각하는 중">
-                <i />
-                <i />
-                <i />
-              </span>
+              {partial ? (
+                renderText(partial)
+              ) : (
+                <span className="chat__typing" aria-label="생각하는 중">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              )}
             </Bubble>
           )}
           {error && !(error.code === 'nokey' && needsKey) && (
