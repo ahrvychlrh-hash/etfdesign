@@ -14,8 +14,6 @@ import { Rebalance } from './components/Rebalance'
 import { History } from './components/History'
 import { HoldingSheet } from './components/HoldingSheet'
 import { AccountSheet } from './components/AccountSheet'
-import { ChatSheet } from './components/ChatSheet'
-import { buildChatContext } from './lib/chatContext'
 import { TabBar, type Tab } from './components/ui'
 
 const STALE_MS = 10 * 60_000
@@ -28,7 +26,6 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [sheet, setSheet] = useState<SheetState>(null)
   const [accountsOpen, setAccountsOpen] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const holdingsRef = useRef(state.holdings)
   holdingsRef.current = state.holdings
@@ -189,7 +186,6 @@ export default function App() {
               onTab={setTab}
               onAdd={() => setSheet({})}
               onReinvest={reinvest}
-              onChat={() => setChatOpen(true)}
             />
           )}
           {tab === 'holdings' && (
@@ -298,8 +294,6 @@ export default function App() {
           }
         />
       )}
-
-      {chatOpen && <ChatSheet getContext={(withAmounts) => buildChatContext(state, plan, withAmounts)} onClose={() => setChatOpen(false)} />}
 
       {accountsOpen && (
         <AccountSheet

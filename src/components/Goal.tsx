@@ -5,6 +5,7 @@ import { Mascot } from './Mascot'
 import { duration, wonShort } from '../lib/format'
 import { ConfirmButton } from './ui'
 import { BackupSection } from './BackupSection'
+import { InstallSection } from './InstallSection'
 
 interface Props {
   profile: Profile
@@ -48,6 +49,8 @@ export function Goal({ profile, plan, onEdit, onReset, state, onImport }: Props)
           value={`연 ${plan.rate.toFixed(1)}%`}
         />
       </div>
+
+      <InstallSection />
 
       <BackupSection state={state} onImport={onImport} />
 

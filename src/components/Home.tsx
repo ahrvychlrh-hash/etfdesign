@@ -7,6 +7,7 @@ import { withdrawalPlan } from '../lib/finance'
 import { duration, wonShort } from '../lib/format'
 import { currentQuote } from '../lib/quotes'
 import { GrowthSection } from './GrowthSection'
+import { MarketSection } from './MarketSection'
 import { Section, Toggle, type Tab } from './ui'
 
 interface Props {
@@ -16,11 +17,9 @@ interface Props {
   onTab: (t: Tab) => void
   onAdd: () => void
   onReinvest: (v: boolean) => void
-  /** 모아와 대화창 열기 */
-  onChat: () => void
 }
 
-export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest, onChat }: Props) {
+export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest }: Props) {
   // 6시간마다 바뀌는 장기 투자 명언
   const quote = currentQuote()
 
@@ -91,15 +90,6 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest, onChat
         </button>
       </div>
 
-      <button className="card card--btn ask-moa" onClick={onChat}>
-        <img src={ICONS.speech} alt="" className="icon3d icon3d--sm" />
-        <span className="ask-moa__text">
-          <b>{MASCOT_NAME}에게 물어보기</b>
-          <span className="muted">내 포트폴리오를 보고 답해 줘요</span>
-        </span>
-        <span className="chev">›</span>
-      </button>
-
       <div className="card card--soft reinvest">
         <img src={ICONS.coin} alt="" className="icon3d icon3d--sm" />
         <div className="reinvest__text">
@@ -148,6 +138,8 @@ export function Home({ profile, holdings, plan, onTab, onAdd, onReinvest, onChat
           <WithdrawCard target={profile.target} rate={plan.rate} />
         </div>
       </Section>
+
+      <MarketSection />
 
       <GrowthSection profile={profile} plan={plan} />
     </>

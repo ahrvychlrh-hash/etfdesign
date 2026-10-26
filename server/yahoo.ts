@@ -6,6 +6,7 @@
  * 배포 서버(Vercel 함수)가 이 모듈을 공통으로 사용합니다.
  */
 
+import { handleMarket } from './market.js'
 const UA = { 'User-Agent': 'Mozilla/5.0 (ETF Planner)' }
 const DAY = 86400
 const MAX_YEARS = 30
@@ -369,6 +370,10 @@ export async function handleApi(url: URL): Promise<{ status: number; body: unkno
     }
     if (url.pathname.endsWith('/etfs')) {
       return { status: 200, body: await krEtfList() }
+    }
+    if (url.pathname.endsWith('/market')) {
+      const { status, body } = await handleMarket(url)
+      return { status, body }
     }
     if (url.pathname.endsWith('/monthend')) {
       const month = url.searchParams.get('month') ?? ''

@@ -6,6 +6,7 @@ import { monthKey, monthLabel, monthRows, prevMonth, realPrincipal, reinvestTota
 import { pct, won, wonShort, wonAxis } from '../lib/format'
 import { MoneyInput } from './MoneyInput'
 import { MonthBars } from './MonthBars'
+import { MarketCompare } from './MarketCompare'
 import { ConfirmButton, Section } from './ui'
 
 interface Props {
@@ -159,6 +160,8 @@ export function History({ holdings, snapshots, reinvests, onSnapshot, onAddReinv
             </div>
             <p className="footnote">연 수익률은 그해 월 수익률을 이어서 곱한 값이에요. 수익금은 자산 증가분에서 새로 넣은 원금만 빼서, 그해 배당·매도 후 재투자한 금액도 들어 있어요. 처음 기록한 달은 그때까지 쌓인 수익도 함께 넣어요.</p>
           </Section>
+
+          <MarketCompare rows={rows} />
         </>
       )}
 
