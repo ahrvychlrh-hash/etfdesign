@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchIndexHistory, fetchMarketNow, indexChange, indexValue, type IndexNow, type Range } from '../lib/market'
+import { wonAxis } from '../lib/format'
 import { LineChart } from './LineChart'
 import { Section } from './ui'
 
@@ -44,12 +45,16 @@ export function MarketSection() {
           <div className="market">
             {shown.map((ix) => (
               <button key={ix.id} className="card card--btn market__card" onClick={() => setOpen(ix)}>
-                <span className="market__name">{ix.name}</span>
-                <b className="market__price">{indexValue(ix.unit, ix.price)}</b>
-                <span className="market__chg" style={{ color: tone(ix.change) }}>
-                  {indexChange(ix)}
+                <span className="market__top">
+                  <span className="market__name">{ix.name}</span>
+                  <span className="market__chg" style={{ color: tone(ix.change) }}>
+                    {indexChange(ix)}
+                  </span>
                 </span>
-                <Spark values={ix.spark} color={tone(ix.spark[ix.spark.length - 1] - ix.spark[0])} />
+                <span className="market__bottom">
+                  <b className="market__price">{indexValue(ix.unit, ix.price)}</b>
+                  <Spark values={ix.spark} color={tone(ix.spark[ix.spark.length - 1] - ix.spark[0])} />
+                </span>
               </button>
             ))}
           </div>
@@ -75,7 +80,7 @@ function timeLabel(sec: number) {
 function Spark({ values, color }: { values: number[]; color: string }) {
   if (values.length < 2) return null
   const w = 100
-  const h = 28
+  const h = 22
   const min = Math.min(...values)
   const max = Math.max(...values)
   const d = values
@@ -138,7 +143,11 @@ function IndexSheet({ ix, onClose }: { ix: IndexNow; onClose: () => void }) {
     return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`
   }
   // 가로축 글자는 4~5개만
-  const ticks = pts ? pts.map((p, i) => (i % Math.max(1, Math.floor((pts.length - 1) / 4)) === 0 || i === pts.length - 1 ? dateOf(p[0]) : '')) : []
+  const step = pts ? Math.max(1, Math.floor((pts.length - 1) / 4)) : 1
+  // 마지막 글자와 너무 가까운 칸은 건너뜀 (겹치지 않게)
+  const ticks = pts
+    ? pts.map((p, i) => (i === pts.length - 1 || (i % step === 0 && pts.length - 1 - i >= step / 2) ? dateOf(p[0]) : ''))
+    : []
 
   return (
     <div className="modal" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -172,7 +181,7 @@ function IndexSheet({ ix, onClose }: { ix: IndexNow; onClose: () => void }) {
               series={[{ name: ix.name, color: tone(periodChg ?? 0), values: pts.map((p) => p[1]), bold: true }]}
               labels={pts.map((p) => fullDate(p[0]))}
               ticks={ticks}
-              format={(v) => (ix.unit === 'pct' ? `${v.toFixed(2)}%` : v >= 10000 ? `${Math.round(v / 1000)}k` : v.toLocaleString('ko-KR', { maximumFractionDigits: v < 100 ? 2 : 0 }))}
+              format={(v) => axisLabel(ix.unit, v)}
               area
               height={220}
             />
@@ -201,4 +210,12 @@ function IndexSheet({ ix, onClose }: { ix: IndexNow; onClose: () => void }) {
       </div>
     </div>
   )
+}
+
+/** 그래프 세로축 — 원화는 만·억 단위로 */
+function axisLabel(unit: IndexNow['unit'], v: number) {
+  if (unit === 'pct') return `${v.toFixed(2)}%`
+  if (unit === 'won' && v >= 1e4) return wonAxis(v)
+  if (v >= 10000) return `${Math.round(v / 1000)}k`
+  return v.toLocaleString('ko-KR', { maximumFractionDigits: v < 100 ? 2 : 0 })
 }

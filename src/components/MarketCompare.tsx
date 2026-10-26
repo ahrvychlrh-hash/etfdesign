@@ -6,7 +6,7 @@ import { Section, Toggle } from './ui'
 
 const MINE = '#3d5afe'
 
-/** 기록 탭: 같은 기간 내 수익률 vs 코스피·코스닥·S&P500·나스닥 */
+/** 기록 탭: 같은 기간 내 수익률 vs 코스피·S&P500·나스닥·금 */
 export function MarketCompare({ rows }: { rows: MonthRow[] }) {
   const [monthly, setMonthly] = useState<Record<string, Record<string, number>> | null>(null)
   const [failed, setFailed] = useState(false)
@@ -69,7 +69,7 @@ export function MarketCompare({ rows }: { rows: MonthRow[] }) {
               <LineChart
                 series={[
                   { name: '내 수익률', color: MINE, values: result.mine, bold: true },
-                  ...COMPARE.map((c) => ({ name: c.name, color: c.color, values: result.indices[c.id] })),
+                  ...COMPARE.map((c) => ({ name: c.name, color: c.color, dash: c.dash, values: result.indices[c.id] })),
                 ]}
                 labels={result.months.map(label)}
                 ticks={result.months.map((m, i) => (i === 0 || i === result.months.length - 1 || m.endsWith('-01') ? short(m) : ''))}
@@ -88,7 +88,7 @@ export function MarketCompare({ rows }: { rows: MonthRow[] }) {
           </>
         )}
         <p className="footnote">
-          내 수익률은 월말 기록의 월 수익률을 이어 곱한 값이라 중간에 넣은 돈은 수익으로 치지 않아요. 지수는 배당을 뺀 가격 기준이에요.
+          내 수익률은 월말 기록의 월 수익률을 이어 곱한 값이라 중간에 넣은 돈은 수익으로 치지 않아요. 지수는 배당을 뺀 가격 기준이고, 금은 국제 금 시세예요.
         </p>
       </div>
     </Section>
@@ -104,6 +104,15 @@ function short(m: string) {
   return mo === '01' ? `${y}` : `${Number(mo)}월`
 }
 
+/** 그래프 선과 같은 모양의 범례 (색 + 실선/점선) */
+function LegendLine({ color, dash, bold }: { color: string; dash?: string; bold?: boolean }) {
+  return (
+    <svg className="compare__line" width="22" height="10" aria-hidden>
+      <line x1="2" y1="5" x2="20" y2="5" stroke={color} strokeWidth={bold ? 3.5 : 2.5} strokeDasharray={dash} strokeLinecap="round" />
+    </svg>
+  )
+}
+
 /** 마지막 달 기준 순위 — 내 수익률과의 차이 */
 function Ranking({ result }: { result: NonNullable<ReturnType<typeof compareReturns>> }) {
   const lastOf = (v: (number | null)[]) => {
@@ -112,10 +121,10 @@ function Ranking({ result }: { result: NonNullable<ReturnType<typeof compareRetu
   }
   const mine = result.mine[result.mine.length - 1]
   const list = [
-    { name: '내 수익률', color: MINE, v: mine, me: true },
-    ...COMPARE.map((c) => ({ name: c.name, color: c.color, v: lastOf(result.indices[c.id]), me: false })),
+    { name: '내 수익률', color: MINE, dash: undefined as string | undefined, v: mine, me: true },
+    ...COMPARE.map((c) => ({ name: c.name, color: c.color, dash: c.dash as string | undefined, v: lastOf(result.indices[c.id]), me: false })),
   ]
-    .filter((x): x is { name: string; color: string; v: number; me: boolean } => x.v != null)
+    .filter((x): x is { name: string; color: string; dash: string | undefined; v: number; me: boolean } => x.v != null)
     .sort((a, b) => b.v - a.v)
   const fmt = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`
   return (
@@ -123,7 +132,7 @@ function Ranking({ result }: { result: NonNullable<ReturnType<typeof compareRetu
       {list.map((x, i) => (
         <li key={x.name} className={x.me ? 'is-me' : ''}>
           <span className="compare__no">{i + 1}</span>
-          <i className="legend__swatch" style={{ background: x.color }} />
+          <LegendLine color={x.color} dash={x.dash} bold={x.me} />
           <span className="compare__name">{x.name}</span>
           <b className={x.v > 0 ? 'tone-up' : x.v < 0 ? 'tone-down' : ''}>{fmt(x.v)}</b>
           {!x.me && (

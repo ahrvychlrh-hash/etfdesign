@@ -7,6 +7,8 @@ export interface LineSeries {
   values: (number | null)[]
   /** 굵게(내 수익률 등) */
   bold?: boolean
+  /** 점선 모양 (예: '6 4') — 색이 비슷해도 구분되게 */
+  dash?: string
 }
 
 interface Props {
@@ -136,10 +138,10 @@ export function LineChart({ series, labels, ticks, format, height = 200, zeroLin
               d={path(s.values)}
               fill="none"
               stroke={s.color}
-              strokeWidth={s.bold ? 3 : 1.8}
+              strokeWidth={s.bold ? 3.5 : 2.2}
+              strokeDasharray={s.dash}
               strokeLinejoin="round"
               strokeLinecap="round"
-              opacity={s.bold || series.length === 1 ? 1 : 0.85}
             />
           ))}
         {at !== null && (

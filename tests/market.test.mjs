@@ -1,14 +1,14 @@
 // 내 수익률과 시장 비교 계산 검사 — `npm test`
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { compareReturns, indexChange } from '../src/lib/market.ts'
+import { compareReturns, indexChange, indexValue } from '../src/lib/market.ts'
 
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} ≈ ${b}`)
 const row = (month, ret) => ({ month, ret, value: 0, principal: 0, newMoney: 0, profit: 0, gain: 0, gainPct: 0, ongoing: false })
 
 const monthly = {
   kospi: { '2026-01': 2000, '2026-02': 2200, '2026-03': 1980 },
-  kosdaq: { '2026-01': 800, '2026-03': 880 },
+  gold: { '2026-01': 800, '2026-03': 880 },
   sp500: { '2026-01': 5000, '2026-02': 5000, '2026-03': 5500 },
   nasdaq: {},
   usdkrw: { '2026-01': 1300, '2026-02': 1430, '2026-03': 1300 },
@@ -26,8 +26,8 @@ test('지수는 첫 달 말 대비 수익률, 값 없는 달은 비움', () => {
   const r = compareReturns([row('2026-01', null), row('2026-02', 0), row('2026-03', 0)], monthly, false)
   close(r.indices.kospi[1], 10)
   close(r.indices.kospi[2], -1)
-  assert.equal(r.indices.kosdaq[1], null)
-  close(r.indices.kosdaq[2], 10)
+  assert.equal(r.indices.gold[1], null)
+  close(r.indices.gold[2], 10)
   assert.deepEqual(r.indices.nasdaq, [null, null, null])
 })
 
@@ -53,4 +53,11 @@ test('기록이 2개월이 안 되면 비교하지 않음', () => {
 test('전일 대비 표시: 금리는 %p, 나머지는 %', () => {
   assert.equal(indexChange({ unit: 'pct', change: 0.035, changePct: 0.7 }), '+0.04%p')
   assert.equal(indexChange({ unit: 'point', change: -80, changePct: -1.456 }), '-1.46%')
+})
+
+test('원화 표시: 1억 이상은 억·만, 1만 이상은 원 단위, 환율은 소수 둘째 자리', () => {
+  assert.equal(indexValue('won', 106361827), '1억 636만원')
+  assert.equal(indexValue('won', 89004606), '8,900만원')
+  assert.equal(indexValue('won', 171572.4), '171,572원')
+  assert.equal(indexValue('won', 1324.416), '1,324.42원')
 })

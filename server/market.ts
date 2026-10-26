@@ -15,7 +15,12 @@ export interface IndexInfo {
   note?: string
   /** 값 표시 방식: point(지수)·won(원)·usd(달러)·pct(금리 %) */
   unit: 'point' | 'won' | 'usd' | 'pct'
+  /** 달러 시세를 원화로 바꿔서 보여줌 (그때그때 원/달러 환율 적용) — divide로 나누기 (금 1온스 → 1g) */
+  toKrw?: { divide?: number }
 }
+
+/** 금 1트로이온스 = 31.1035g */
+const GRAMS_PER_OZ = 31.1034768
 
 export const INDICES: IndexInfo[] = [
   { id: 'kospi', symbol: '^KS11', name: '코스피', unit: 'point' },
@@ -23,16 +28,17 @@ export const INDICES: IndexInfo[] = [
   { id: 'sp500', symbol: '^GSPC', name: 'S&P 500', unit: 'point' },
   { id: 'nasdaq', symbol: '^IXIC', name: '나스닥', unit: 'point' },
   { id: 'dow', symbol: '^DJI', name: '다우존스', unit: 'point' },
-  { id: 'sox', symbol: '^SOX', name: '필라델피아 반도체', unit: 'point' },
   { id: 'vix', symbol: '^VIX', name: 'VIX 공포지수', note: '높을수록 시장이 불안해요 (20 이상 주의, 30 이상 공포)', unit: 'point' },
+  { id: 'sox', symbol: '^SOX', name: '반도체 (SOX)', note: '필라델피아 반도체 지수', unit: 'point' },
   { id: 'nikkei', symbol: '^N225', name: '닛케이 225', unit: 'point' },
   { id: 'usdkrw', symbol: 'KRW=X', name: '원/달러 환율', note: '오르면 달러가 비싸져요 (해외 ETF 원화 가치 ↑)', unit: 'won' },
-  { id: 'tnx', symbol: '^TNX', name: '미국 10년 국채 금리', note: '오르면 채권 가격은 내려가요', unit: 'pct' },
-  { id: 'gold', symbol: 'GC=F', name: '금 (1온스)', unit: 'usd' },
+  { id: 'tnx', symbol: '^TNX', name: '미국 10년 금리', note: '미국 10년 국채 금리 — 오르면 채권 가격은 내려가요', unit: 'pct' },
+  { id: 'gold', symbol: 'GC=F', name: '금 (1g)', note: '국제 금 시세를 원화 1g으로 바꾼 값이에요', unit: 'won', toKrw: { divide: GRAMS_PER_OZ } },
+  { id: 'btc', symbol: 'BTC-USD', name: '비트코인', note: '24시간 거래돼요 · 국제 시세를 원화로 바꾼 값이에요', unit: 'won', toKrw: {} },
 ]
 
 /** 내 수익률과 비교하는 지수 */
-export const COMPARE_IDS = ['kospi', 'kosdaq', 'sp500', 'nasdaq'] as const
+export const COMPARE_IDS = ['kospi', 'sp500', 'nasdaq', 'gold'] as const
 
 const cache = new Map<string, { at: number; data: unknown }>()
 async function cached<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
@@ -70,6 +76,31 @@ function points(r: ChartResult): [number, number][] {
   return out
 }
 
+/** 시각 순으로 정렬된 환율 중 그 시각 이전의 가장 가까운 값 */
+function fxAt(fx: [number, number][], t: number) {
+  let v = fx[0]?.[1]
+  for (const [ft, fv] of fx) {
+    if (ft > t + 12 * 3600) break
+    v = fv
+  }
+  return v
+}
+
+/** 차트 받기 — toKrw면 같은 기간 원/달러 환율을 곱해 원화로 */
+async function load(info: IndexInfo, query: string) {
+  const [r, fxr] = await Promise.all([chart(info.symbol, query), info.toKrw ? chart('KRW=X', query) : null])
+  let pts = points(r)
+  let price = r.meta.regularMarketPrice ?? pts[pts.length - 1]?.[1]
+  if (fxr && info.toKrw) {
+    const fx = points(fxr)
+    const div = info.toKrw.divide ?? 1
+    if (!fx.length) throw new Error('no fx')
+    pts = pts.map(([t, c]) => [t, (c * fxAt(fx, t)) / div])
+    price = (price * (fxr.meta.regularMarketPrice ?? fx[fx.length - 1][1])) / div
+  }
+  return { pts, price, time: r.meta.regularMarketTime ?? pts[pts.length - 1]?.[0] ?? 0, meta: r.meta }
+}
+
 export interface IndexNow extends IndexInfo {
   price: number
   /** 전일 종가 대비 */
@@ -87,11 +118,8 @@ export function getMarketNow(): Promise<IndexNow[]> {
     const list = await Promise.all(
       INDICES.map(async (info) => {
         try {
-          const r = await chart(info.symbol, 'range=1mo&interval=1d')
-          const pts = points(r)
+          const { pts, price, time } = await load(info, 'range=1mo&interval=1d')
           if (!pts.length) return null
-          const price = r.meta.regularMarketPrice ?? pts[pts.length - 1][1]
-          const time = r.meta.regularMarketTime ?? pts[pts.length - 1][0]
           // 마지막 일봉이 오늘 것이면 그 앞이 전일 종가
           const lastIsToday = time - pts[pts.length - 1][0] < 20 * 3600
           const prev = lastIsToday ? pts[pts.length - 2]?.[1] : pts[pts.length - 1][1]
@@ -120,7 +148,7 @@ export type Range = keyof typeof RANGES
 export function getIndexHistory(id: string, range: Range): Promise<[number, number][]> {
   const info = INDICES.find((i) => i.id === id)
   if (!info) throw new Error('unknown index')
-  return cached(`market:hist:${id}:${range}`, 30 * 60_000, async () => points(await chart(info.symbol, `range=${range}&interval=${RANGES[range]}`)))
+  return cached(`market:hist:${id}:${range}`, 30 * 60_000, async () => (await load(info, `range=${range}&interval=${RANGES[range]}`)).pts)
 }
 
 /** 'YYYY-MM' → 그달 마지막 종가 (월봉 기준, 이번 달은 지금까지의 마지막 값) */

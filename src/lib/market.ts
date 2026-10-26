@@ -17,7 +17,12 @@ export const fetchMarketMonthly = () => get<Record<string, Record<string, number
 /** 지수 값 표시 */
 export function indexValue(unit: IndexNow['unit'], v: number) {
   const n = (d: number) => v.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d })
-  if (unit === 'won') return `${n(2)}원`
+  if (unit === 'won') {
+    // 1억 이상은 '1억 636만원', 1천만 이상은 '8,900만원', 1만 이상은 원 단위까지, 환율처럼 작은 값은 소수 둘째 자리까지
+    if (v >= 1e8) return `${Math.floor(v / 1e8)}억 ${Math.floor((v % 1e8) / 1e4).toLocaleString('ko-KR')}만원`
+    if (v >= 1e7) return `${Math.floor(v / 1e4).toLocaleString('ko-KR')}만원`
+    return `${n(v >= 1e4 ? 0 : 2)}원`
+  }
   if (unit === 'usd') return `$${n(2)}`
   if (unit === 'pct') return `${n(2)}%`
   return n(2)
@@ -33,10 +38,11 @@ export function indexChange(ix: Pick<IndexNow, 'unit' | 'change' | 'changePct'>)
 /* ---------- 내 수익률과 시장 비교 ---------- */
 
 export const COMPARE = [
-  { id: 'kospi', name: '코스피', color: '#eb6834', foreign: false },
-  { id: 'kosdaq', name: '코스닥', color: '#e87ba4', foreign: false },
-  { id: 'sp500', name: 'S&P 500', color: '#1baf7a', foreign: true },
-  { id: 'nasdaq', name: '나스닥', color: '#6250d6', foreign: true },
+  // 서로 잘 구분되게 색이 다르고, 두 개는 점선 (내 수익률은 굵은 파랑)
+  { id: 'kospi', name: '코스피', color: '#f03e3e', dash: undefined, foreign: false },
+  { id: 'sp500', name: 'S&P 500', color: '#2f9e44', dash: undefined, foreign: true },
+  { id: 'nasdaq', name: '나스닥', color: '#ae3ec9', dash: '6 4', foreign: true },
+  { id: 'gold', name: '금', color: '#f59f00', dash: '2 4', foreign: true },
 ] as const
 
 export interface CompareResult {
