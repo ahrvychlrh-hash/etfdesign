@@ -22,11 +22,11 @@ test('첫 달 말이 0%, 내 수익률은 월 수익률을 이어 곱함', () =>
   close(r.mine[2], (1.1 * 0.9 - 1) * 100) // -1%
 })
 
-test('지수는 첫 달 말 대비 수익률, 값 없는 달은 비움', () => {
+test('지수는 첫 달 말 대비 수익률, 값 없는 달은 직전 값으로 채움', () => {
   const r = compareReturns([row('2026-01', null), row('2026-02', 0), row('2026-03', 0)], monthly, false)
   close(r.indices.kospi[1], 10)
   close(r.indices.kospi[2], -1)
-  assert.equal(r.indices.gold[1], null)
+  close(r.indices.gold[1], 0)
   close(r.indices.gold[2], 10)
   assert.deepEqual(r.indices.nasdaq, [null, null, null])
 })
@@ -60,4 +60,16 @@ test('원화 표시: 1억 이상은 억·만, 1만 이상은 원 단위, 환율�
   assert.equal(indexValue('won', 89004606), '8,900만원')
   assert.equal(indexValue('won', 171572.4), '171,572원')
   assert.equal(indexValue('won', 1324.416), '1,324.42원')
+})
+
+test('서머타임이 끝난 뒤에도 월봉이 제달로 들어감', async () => {
+  const { monthOf } = await import('../server/market.ts')
+  // 10월 1일 0시(EDT) 월봉을 지금 시차(EST, -5시간)로 보면 9월 30일 23시 → 10월로 봐야 함
+  assert.equal(monthOf(Date.UTC(2026, 9, 1, 4) / 1000, -18000), '2026-10')
+  // 코스피: 11월 1일 0시(KST) 월봉
+  assert.equal(monthOf(Date.UTC(2026, 9, 31, 15) / 1000, 32400), '2026-11')
+  // 달 중간 시세는 그달 그대로
+  assert.equal(monthOf(Date.UTC(2026, 10, 2, 21, 50) / 1000, -18000), '2026-11')
+  // 12월 → 다음 해 1월
+  assert.equal(monthOf(Date.UTC(2027, 0, 1, 5) / 1000, -21600), '2027-01')
 })

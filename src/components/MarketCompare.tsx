@@ -135,11 +135,10 @@ function Ranking({ result }: { result: NonNullable<ReturnType<typeof compareRetu
           <LegendLine color={x.color} dash={x.dash} bold={x.me} />
           <span className="compare__name">{x.name}</span>
           <b className={x.v > 0 ? 'tone-up' : x.v < 0 ? 'tone-down' : ''}>{fmt(x.v)}</b>
-          {!x.me && (
-            <small className="muted compare__gap">
-              {mine - x.v >= 0 ? `내가 ${(mine - x.v).toFixed(1)}%p 앞섬` : `내가 ${(x.v - mine).toFixed(1)}%p 뒤짐`}
-            </small>
-          )}
+          {/* 내 수익률 줄도 같은 자리를 비워 둬서 숫자가 한 줄로 맞게 */}
+          <small className="muted compare__gap">
+            {x.me ? '' : mine - x.v >= 0 ? `내가 ${(mine - x.v).toFixed(1)}%p 앞섬` : `내가 ${(x.v - mine).toFixed(1)}%p 뒤짐`}
+          </small>
         </li>
       ))}
     </ul>

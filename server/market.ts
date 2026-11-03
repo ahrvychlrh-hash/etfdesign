@@ -152,27 +152,40 @@ export function getIndexHistory(id: string, range: Range): Promise<[number, numb
 }
 
 /** 'YYYY-MM' → 그달 마지막 종가 (월봉 기준, 이번 달은 지금까지의 마지막 값) */
-async function monthlyCloses(symbol: string): Promise<Record<string, number>> {
+export async function monthlyCloses(symbol: string): Promise<Record<string, number>> {
   const r = await chart(symbol, 'range=10y&interval=1mo')
   const off = r.meta.gmtoffset ?? 0
   const out: Record<string, number> = {}
-  for (const [t, c] of points(r)) {
-    const d = new Date((t + off) * 1000)
-    out[`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`] = c
-  }
+  for (const [t, c] of points(r)) out[monthOf(t, off)] = c
   // 이번 달은 월봉 대신 지금 값
   const now = r.meta.regularMarketPrice
   const t = r.meta.regularMarketTime
-  if (now && t) {
-    const d = new Date((t + off) * 1000)
-    out[`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`] = now
-  }
+  if (now && t) out[monthOf(t, off)] = now
   return out
+}
+
+/**
+ * 월봉 시각 → 'YYYY-MM'. 월봉은 그달 1일 0시(현지)에 찍히는데, Yahoo가 주는 시차(gmtoffset)는
+ * '지금' 기준이라 서머타임이 바뀐 뒤엔 1시간 어긋나 전달 말일 23시로 보일 수 있음 → 말일 22시 이후면 다음 달로 봄
+ */
+export function monthOf(t: number, off: number) {
+  const d = new Date((t + off) * 1000)
+  let y = d.getUTCFullYear()
+  let m = d.getUTCMonth() + 1
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  if (d.getUTCDate() === lastDay && d.getUTCHours() >= 22) {
+    m += 1
+    if (m === 13) {
+      m = 1
+      y += 1
+    }
+  }
+  return `${y}-${String(m).padStart(2, '0')}`
 }
 
 /** 비교용 지수들과 원/달러 환율의 월말 값 */
 export function getMarketMonthly(): Promise<Record<string, Record<string, number>>> {
-  return cached('market:monthly', 6 * 3600_000, async () => {
+  return cached('market:monthly', 3600_000, async () => {
     const ids = [...COMPARE_IDS, 'usdkrw']
     const out: Record<string, Record<string, number>> = {}
     await Promise.all(
@@ -195,6 +208,6 @@ export async function handleMarket(url: URL): Promise<{ status: number; body: un
     if (!INDICES.some((i) => i.id === id) || !(range in RANGES)) return { status: 400, body: { error: 'id·range 확인' }, maxAge: 0 }
     return { status: 200, body: await getIndexHistory(id, range), maxAge: 1800 }
   }
-  if (view === 'monthly') return { status: 200, body: await getMarketMonthly(), maxAge: 21600 }
+  if (view === 'monthly') return { status: 200, body: await getMarketMonthly(), maxAge: 3600 }
   return { status: 400, body: { error: 'view 확인' }, maxAge: 0 }
 }

@@ -45,6 +45,23 @@ export const COMPARE = [
   { id: 'gold', name: '금', color: '#f59f00', dash: '2 4', foreign: true },
 ] as const
 
+/**
+ * 그달 값 — 없으면(휴장·아직 거래 전 등) 두 달 안의 가장 최근 값으로 채워 선이 끊기지 않게
+ */
+function recent(series: Record<string, number>, m: string) {
+  let [y, mo] = m.split('-').map(Number)
+  for (let i = 0; i < 3; i++) {
+    const v = series[`${y}-${String(mo).padStart(2, '0')}`]
+    if (v != null) return v
+    mo -= 1
+    if (mo === 0) {
+      mo = 12
+      y -= 1
+    }
+  }
+  return null
+}
+
 export interface CompareResult {
   /** 'YYYY-MM' — 첫 달이 기준(0%) */
   months: string[]
@@ -82,9 +99,12 @@ export function compareReturns(
   for (const c of COMPARE) {
     const series = monthly[c.id] ?? {}
     const val = (m: string) => {
-      const v = series[m]
+      const v = recent(series, m)
       if (v == null) return null
-      if (c.foreign && krw) return fx[m] != null ? v * fx[m] : null
+      if (c.foreign && krw) {
+        const r = recent(fx, m)
+        return r != null ? v * r : null
+      }
       return v
     }
     const base = val(months[0])
